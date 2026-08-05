@@ -15,7 +15,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: List all files (debug)
+      - name: List files (debug)
         run: |
           echo "Current directory:"
           pwd
@@ -26,11 +26,13 @@ jobs:
 
       - name: Compile ffhack
         run: |
-          # Tìm file .mm tự động
-          MM_FILE=$(find . -name "ffhack_full.mm" | head -1)
+          # Tìm file ffhack.mm
+          MM_FILE=$(find . -name "ffhack.mm" | head -1)
           
           if [ -z "$MM_FILE" ]; then
-            echo "Error: ffhack_full.mm not found!"
+            echo "Error: ffhack.mm not found!"
+            echo "Available .mm files:"
+            find . -name "*.mm"
             exit 1
           fi
           
@@ -48,6 +50,7 @@ jobs:
             "$MM_FILE"
           
           echo "Build successful! Output: libffhack.dylib"
+          ls -la libffhack.dylib
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
