@@ -1,0 +1,9 @@
+Package: com.fluck.dylib
+Name: Fluck Mod
+Version: 1.0.0
+Architecture: iphoneos-arm
+Description: Fluck mod menu for games
+Maintainer: Fluck Team
+Author: Fluck Team
+Section: Tweaks
+Depends: mobilesubstrate (>= 0.9.5000), firmware (>= 14.0)
