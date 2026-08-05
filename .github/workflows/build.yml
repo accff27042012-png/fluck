@@ -1,26 +1,60 @@
-# Install iOS SDK (if not already)
-# Download iOS SDK from Apple or use existing
+name: Build Fluck Dylib
 
-# Build dylib
-clang++ -dynamiclib \
-    -arch arm64 \
-    -arch arm64e \
-    -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk \
-    -framework UIKit \
-    -framework Foundation \
-    -framework CoreGraphics \
-    -framework QuartzCore \
-    -framework CoreFoundation \
-    -framework GraphicsServices \
-    -framework BackBoardServices \
-    -lobjc \
-    -O2 \
-    -flto \
-    -fobjc-arc \
-    -miphoneos-version-min=14.0 \
-    -o fluck.dylib \
-    fluck.mm
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
 
-# Check if build succeeded
-file fluck.dylib
-# Should output: fluck.dylib: Mach-O 64-bit dynamically linked shared library arm64
+jobs:
+  build:
+    runs-on: macos-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+    
+    - name: Setup Xcode
+      uses: maxim-lobanov/setup-xcode@v1
+      with:
+        xcode-version: '15.0.0'
+    
+    - name: Install Theos
+      run: |
+        git clone --recursive https://github.com/theos/theos.git $HOME/theos
+        echo "THEOS=$HOME/theos" >> $GITHUB_ENV
+        echo "$HOME/theos/bin" >> $GITHUB_PATH
+    
+    - name: Create Theos project
+      run: |
+        $THEOS/bin/nic.pl \
+          --projectname fluck \
+          --package com.fluck.dylib \
+          --author "Fluck Team" \
+          --bundleid com.garena.game.ff
+        
+    - name: Copy source code
+      run: |
+        cp fluck.mm fluck/Tweak.xm
+        cd fluck
+        sed -i '' 's/^fluck_FILES.*/fluck_FILES = Tweak.xm/' Makefile
+        echo "fluck_CFLAGS = -fobjc-arc -O2" >> Makefile
+        echo "fluck_FRAMEWORKS = UIKit Foundation CoreGraphics QuartzCore" >> Makefile
+    
+    - name: Build dylib
+      run: |
+        cd fluck
+        make
+        
+    - name: Upload dylib
+      uses: actions/upload-artifact@v3
+      with:
+        name: fluck
+        path: fluck/.theos/obj/debug/fluck.dylib
+
+    - name: Upload deb package
+      uses: actions/upload-artifact@v3
+      with:
+        name: fluck-package
+        path: fluck/*.deb
