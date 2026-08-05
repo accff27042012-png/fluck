@@ -31,11 +31,24 @@ jobs:
         brew install make
         echo "PATH=$(brew --prefix make)/libexec/gnubin:$PATH" >> $GITHUB_ENV
     
-    - name: Build dylib
+    - name: Install ldid
+      run: |
+        git clone https://github.com/ProcursusTeam/ldid.git
+        cd ldid
+        git submodule update --init
+        make
+        sudo make install
+        echo "$(pwd)" >> $GITHUB_PATH
+    
+    - name: Build dylib (unsigned)
       run: |
         export THEOS=$HOME/theos
         export SDKROOT=$(xcrun --sdk iphoneos --show-sdk-path)
+        # Tắt ký mã để build không cần ldid
+        export CODESIGN_ALLOCATE=/usr/bin/codesign_allocate
         make
+      env:
+        TARGET_CODESIGN: "echo"
     
     - name: Upload dylib
       uses: actions/upload-artifact@v4
