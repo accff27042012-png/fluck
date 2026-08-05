@@ -13,6 +13,26 @@
 #define LOG(msg, ...) NSLog(@"🔰 " msg, ##__VA_ARGS__)
 
 // ============================================================
+// VECTOR3 CLASS - KHAI BÁO TRƯỚC KHI DÙNG
+// ============================================================
+
+typedef struct {
+    float x, y, z;
+} Vector3;
+
+static inline Vector3 Vector3Make(float x, float y, float z) {
+    Vector3 v = {x, y, z};
+    return v;
+}
+
+static inline float Vector3Distance(Vector3 a, Vector3 b) {
+    float dx = a.x - b.x;
+    float dy = a.y - b.y;
+    float dz = a.z - b.z;
+    return sqrtf(dx*dx + dy*dy + dz*dz);
+}
+
+// ============================================================
 // MEMORY FUNCTIONS
 // ============================================================
 
@@ -88,6 +108,7 @@ static kern_return_t mach_vm_read_overwrite_fix(vm_map_t task, mach_vm_address_t
 - (int)readInt:(uintptr_t)address;
 - (void)writeFloat:(uintptr_t)address value:(float)value;
 - (void)writeInt:(uintptr_t)address value:(int)value;
+- (Vector3)readVector3:(uintptr_t)address;
 
 - (void)enableAimbot:(BOOL)enable;
 - (void)enableESP:(BOOL)enable;
@@ -102,6 +123,7 @@ static kern_return_t mach_vm_read_overwrite_fix(vm_map_t task, mach_vm_address_t
 - (void)enableInfiniteAmmo:(BOOL)enable;
 - (void)enableTeleport:(BOOL)enable;
 - (void)stopHackLoop;
+- (void)stopTeleportLoop;
 
 @property (nonatomic, assign) BOOL aimbotEnabled;
 @property (nonatomic, assign) BOOL espEnabled;
@@ -435,26 +457,6 @@ static kern_return_t mach_vm_read_overwrite_fix(vm_map_t task, mach_vm_address_t
 @end
 
 // ============================================================
-// VECTOR3 CLASS
-// ============================================================
-
-typedef struct {
-    float x, y, z;
-} Vector3;
-
-static inline Vector3 Vector3Make(float x, float y, float z) {
-    Vector3 v = {x, y, z};
-    return v;
-}
-
-static inline float Vector3Distance(Vector3 a, Vector3 b) {
-    float dx = a.x - b.x;
-    float dy = a.y - b.y;
-    float dz = a.z - b.z;
-    return sqrtf(dx*dx + dy*dy + dz*dz);
-}
-
-// ============================================================
 // YOUTUBE MUSIC PLAYER
 // ============================================================
 
@@ -578,7 +580,7 @@ static inline float Vector3Distance(Vector3 a, Vector3 b) {
     config.allowsAirPlayForMediaPlayback = YES;
     config.allowsPictureInPictureMediaPlayback = YES;
     config.preferences = [[WKPreferences alloc] init];
-    config.preferences.javaScriptEnabled = YES;
+    // javaScriptEnabled đã deprecated, bỏ qua
     
     WKWebView *webView = [[WKWebView alloc] initWithFrame:CGRectMake(0, 0, width, height) configuration:config];
     webView.backgroundColor = [UIColor blackColor];
@@ -719,7 +721,7 @@ static inline float Vector3Distance(Vector3 a, Vector3 b) {
 @property (nonatomic, assign) BOOL isOn;
 @property (nonatomic, strong) UILabel *iconLabel;
 @property (nonatomic, strong) UILabel *statusLabel;
-@property (nonatomic, strong) UILabel *titleLabel;
+@property (nonatomic, strong) UILabel *floatingTitleLabel; // Đổi tên để tránh conflict
 @end
 
 @implementation FluckFloatingButton
@@ -743,14 +745,14 @@ static inline float Vector3Distance(Vector3 a, Vector3 b) {
         self.iconLabel.userInteractionEnabled = NO;
         [self addSubview:self.iconLabel];
         
-        // Title
-        self.titleLabel = [[UILabel alloc] initWithFrame:CGRectMake(28, 2, 50, 20)];
-        self.titleLabel.text = title;
-        self.titleLabel.textColor = [UIColor whiteColor];
-        self.titleLabel.font = [UIFont boldSystemFontOfSize:12];
-        self.titleLabel.textAlignment = NSTextAlignmentLeft;
-        self.titleLabel.userInteractionEnabled = NO;
-        [self addSubview:self.titleLabel];
+        // Title - đổi tên property
+        self.floatingTitleLabel = [[UILabel alloc] initWithFrame:CGRectMake(28, 2, 50, 20)];
+        self.floatingTitleLabel.text = title;
+        self.floatingTitleLabel.textColor = [UIColor whiteColor];
+        self.floatingTitleLabel.font = [UIFont boldSystemFontOfSize:12];
+        self.floatingTitleLabel.textAlignment = NSTextAlignmentLeft;
+        self.floatingTitleLabel.userInteractionEnabled = NO;
+        [self addSubview:self.floatingTitleLabel];
         
         // Status
         self.statusLabel = [[UILabel alloc] initWithFrame:CGRectMake(frame.size.width - 18, 4, 12, 12)];
@@ -891,7 +893,7 @@ static inline float Vector3Distance(Vector3 a, Vector3 b) {
 @end
 
 // ============================================================
-// FLUCK MENU VIEW CONTROLLER - MENU ẢNH MÈO
+// FLUCK MENU VIEW CONTROLLER
 // ============================================================
 
 @interface FluckMenuViewController : UIViewController <UIGestureRecognizerDelegate>
@@ -904,7 +906,8 @@ static inline float Vector3Distance(Vector3 a, Vector3 b) {
 @property (nonatomic, strong) FluckTripleTapGestureRecognizer *tripleTapGesture;
 @property (nonatomic, assign) BOOL isHiddenByCamera;
 @property (nonatomic, strong) FreeFireHackManager *hackManager;
-@property (nonatomic, weak) UIWindow *overlayWindow;
+// KHÔNG dùng weak, dùng assign hoặc strong
+@property (nonatomic, assign) UIWindow *overlayWindow;
 @property (nonatomic, strong) NSMutableDictionary *buttonStates;
 @property (nonatomic, strong) UIImageView *menuBackgroundImageView;
 @property (nonatomic, strong) NSMutableArray *menuButtons;
@@ -952,27 +955,20 @@ static inline float Vector3Distance(Vector3 a, Vector3 b) {
     self.menuView.userInteractionEnabled = YES;
     [self.view addSubview:self.menuView];
     
-    // Ảnh nền - MÈO CẦM SÚNG (dùng URL hoặc local)
+    // Ảnh nền
     self.menuBackgroundImageView = [[UIImageView alloc] initWithFrame:self.menuView.bounds];
     self.menuBackgroundImageView.contentMode = UIViewContentModeScaleAspectFill;
     self.menuBackgroundImageView.clipsToBounds = YES;
-    self.menuBackgroundImageView.backgroundColor = [UIColor colorWithRed:0.1 green:0.1 blue:0.1 alpha:1.0];
-    
-    // TẠO ẢNH MÈO CẦM SÚNG BẰNG CODE (nếu không có URL)
+    self.menuBackgroundImageView.backgroundColor = [UIColor colorWithRed:0.1 green:0.1 blue:0.2 alpha:1.0];
     [self createCatWithGunImage];
-    
-    // Hoặc dùng URL ảnh mèo cầm súng (nếu có link)
-    // NSString *imageUrl = @"https://cdnv2.tgdd.vn/mwg-static/common/News/1591273/meme-meo-cam-sung%20%2820%29.jpg";
-    // [self loadImageFromURL:imageUrl];
-    
     [self.menuView addSubview:self.menuBackgroundImageView];
     
-    // Lớp phủ mờ nhẹ để chữ nổi bật
+    // Lớp phủ mờ
     UIView *overlayView = [[UIView alloc] initWithFrame:self.menuView.bounds];
     overlayView.backgroundColor = [UIColor colorWithWhite:0.0 alpha:0.25];
     [self.menuView addSubview:overlayView];
     
-    // Tiêu đề menu
+    // Tiêu đề
     UILabel *titleLabel = [[UILabel alloc] initWithFrame:CGRectMake(0, 15, menuWidth, 35)];
     titleLabel.text = @"⚡ FLUCK PRO v1.0";
     titleLabel.textColor = [UIColor colorWithRed:0.0 green:1.0 blue:0.8 alpha:1.0];
@@ -992,21 +988,21 @@ static inline float Vector3Distance(Vector3 a, Vector3 b) {
     subtitleLabel.shadowOffset = CGSizeMake(0, 1);
     [self.menuView addSubview:subtitleLabel];
     
-    // Các nút chức năng trên menu
+    // Các nút chức năng
     NSArray *features = @[
-        @{@"icon": @"🎯", @"title": @"Aimbot", @"action": @"toggleAimbot"},
-        @{@"icon": @"👁️", @"title": @"ESP", @"action": @"toggleESP"},
-        @{@"icon": @"🪄", @"title": @"Fly", @"action": @"toggleFly"},
-        @{@"icon": @"💉", @"title": @"God Mode", @"action": @"toggleGod"},
-        @{@"icon": @"⚡", @"title": @"Speed", @"action": @"toggleSpeed"},
-        @{@"icon": @"🛡️", @"title": @"Wall", @"action": @"toggleWall"},
-        @{@"icon": @"📡", @"title": @"Radar", @"action": @"toggleRadar"},
-        @{@"icon": @"🎨", @"title": @"Chams", @"action": @"toggleChams"},
-        @{@"icon": @"🔫", @"title": @"No Recoil", @"action": @"toggleNoRecoil"},
-        @{@"icon": @"🎮", @"title": @"Trigger", @"action": @"toggleTrigger"},
-        @{@"icon": @"🔫", @"title": @"Infinite Ammo", @"action": @"toggleAmmo"},
-        @{@"icon": @"🌀", @"title": @"Teleport", @"action": @"toggleTeleport"},
-        @{@"icon": @"🎵", @"title": @"YouTube", @"action": @"toggleYouTube"}
+        @{@"icon": @"🎯", @"title": @"Aimbot"},
+        @{@"icon": @"👁️", @"title": @"ESP"},
+        @{@"icon": @"🪄", @"title": @"Fly"},
+        @{@"icon": @"💉", @"title": @"God Mode"},
+        @{@"icon": @"⚡", @"title": @"Speed"},
+        @{@"icon": @"🛡️", @"title": @"Wall"},
+        @{@"icon": @"📡", @"title": @"Radar"},
+        @{@"icon": @"🎨", @"title": @"Chams"},
+        @{@"icon": @"🔫", @"title": @"No Recoil"},
+        @{@"icon": @"🎮", @"title": @"Trigger"},
+        @{@"icon": @"🔫", @"title": @"Infinite Ammo"},
+        @{@"icon": @"🌀", @"title": @"Teleport"},
+        @{@"icon": @"🎵", @"title": @"YouTube"}
     ];
     
     CGFloat y = 75;
@@ -1033,10 +1029,7 @@ static inline float Vector3Distance(Vector3 a, Vector3 b) {
         btn.titleLabel.font = [UIFont systemFontOfSize:11];
         btn.tag = i;
         btn.userInteractionEnabled = YES;
-        
-        // Lưu action name
-        objc_setAssociatedObject(btn, "actionName", features[i][@"action"], OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-        
+        objc_setAssociatedObject(btn, "featureTitle", features[i][@"title"], OBJC_ASSOCIATION_RETAIN_NONATOMIC);
         [btn addTarget:self action:@selector(onMenuButtonTap:) forControlEvents:UIControlEventTouchUpInside];
         [self.menuView addSubview:btn];
         [self.menuButtons addObject:btn];
@@ -1074,12 +1067,6 @@ static inline float Vector3Distance(Vector3 a, Vector3 b) {
 }
 
 - (void)createCatWithGunImage {
-    // Vẽ ảnh mèo cầm súng bằng Core Graphics
-    UIImage *catImage = [self drawCatWithGun];
-    self.menuBackgroundImageView.image = catImage;
-}
-
-- (UIImage *)drawCatWithGun {
     CGSize size = CGSizeMake(350, 450);
     UIGraphicsBeginImageContextWithOptions(size, NO, 0);
     CGContextRef ctx = UIGraphicsGetCurrentContext();
@@ -1094,7 +1081,6 @@ static inline float Vector3Distance(Vector3 a, Vector3 b) {
     CGGradientRelease(gradient);
     CGColorSpaceRelease(colorSpace);
     
-    // Vẽ mèo
     // Body
     CGContextSetFillColorWithColor(ctx, [UIColor colorWithRed:0.3 green:0.2 blue:0.1 alpha:1.0].CGColor);
     CGContextFillEllipseInRect(ctx, CGRectMake(100, 200, 150, 180));
@@ -1111,7 +1097,6 @@ static inline float Vector3Distance(Vector3 a, Vector3 b) {
     CGContextAddLineToPoint(ctx, 150, 120);
     CGContextClosePath(ctx);
     CGContextFillPath(ctx);
-    
     CGContextBeginPath(ctx);
     CGContextMoveToPoint(ctx, 230, 140);
     CGContextAddLineToPoint(ctx, 250, 100);
@@ -1123,7 +1108,6 @@ static inline float Vector3Distance(Vector3 a, Vector3 b) {
     CGContextSetFillColorWithColor(ctx, [UIColor whiteColor].CGColor);
     CGContextFillEllipseInRect(ctx, CGRectMake(145, 155, 30, 25));
     CGContextFillEllipseInRect(ctx, CGRectMake(195, 155, 30, 25));
-    
     CGContextSetFillColorWithColor(ctx, [UIColor blackColor].CGColor);
     CGContextFillEllipseInRect(ctx, CGRectMake(155, 160, 12, 15));
     CGContextFillEllipseInRect(ctx, CGRectMake(205, 160, 12, 15));
@@ -1152,7 +1136,6 @@ static inline float Vector3Distance(Vector3 a, Vector3 b) {
         CGContextMoveToPoint(ctx, 130, 180 + i * 12);
         CGContextAddLineToPoint(ctx, 80, 170 + i * 15);
         CGContextStrokePath(ctx);
-        
         CGContextBeginPath(ctx);
         CGContextMoveToPoint(ctx, 230, 180 + i * 12);
         CGContextAddLineToPoint(ctx, 280, 170 + i * 15);
@@ -1164,34 +1147,23 @@ static inline float Vector3Distance(Vector3 a, Vector3 b) {
     CGContextFillEllipseInRect(ctx, CGRectMake(80, 250, 40, 60));
     CGContextFillEllipseInRect(ctx, CGRectMake(230, 250, 40, 60));
     
-    // SÚNG
-    // Thân súng
+    // Gun
     CGContextSetFillColorWithColor(ctx, [UIColor colorWithRed:0.1 green:0.1 blue:0.1 alpha:1.0].CGColor);
     CGContextFillRect(ctx, CGRectMake(100, 310, 150, 25));
-    
-    // Nòng súng
     CGContextSetFillColorWithColor(ctx, [UIColor colorWithRed:0.15 green:0.15 blue:0.15 alpha:1.0].CGColor);
     CGContextFillRect(ctx, CGRectMake(70, 315, 40, 15));
-    
-    // Báng súng
     CGContextSetFillColorWithColor(ctx, [UIColor colorWithRed:0.2 green:0.15 blue:0.1 alpha:1.0].CGColor);
     CGContextFillRect(ctx, CGRectMake(230, 305, 30, 35));
     CGContextFillRect(ctx, CGRectMake(250, 310, 20, 25));
-    
-    // Hộp đạn
     CGContextSetFillColorWithColor(ctx, [UIColor colorWithRed:0.15 green:0.15 blue:0.15 alpha:1.0].CGColor);
     CGContextFillRect(ctx, CGRectMake(120, 335, 50, 20));
-    
-    // Tay cầm
     CGContextSetFillColorWithColor(ctx, [UIColor colorWithRed:0.2 green:0.15 blue:0.1 alpha:1.0].CGColor);
     CGContextFillRect(ctx, CGRectMake(180, 335, 25, 30));
-    
-    // Một số chi tiết súng
     CGContextSetFillColorWithColor(ctx, [UIColor colorWithRed:0.3 green:0.3 blue:0.3 alpha:1.0].CGColor);
     CGContextFillRect(ctx, CGRectMake(75, 318, 15, 8));
     CGContextFillRect(ctx, CGRectMake(135, 338, 10, 14));
     
-    // Text "FLUCK PRO"
+    // Text
     CGContextSetFillColorWithColor(ctx, [UIColor colorWithRed:0.0 green:1.0 blue:0.8 alpha:0.3].CGColor);
     UIFont *font = [UIFont boldSystemFontOfSize:40];
     NSDictionary *attrs = @{NSFontAttributeName: font, NSForegroundColorAttributeName: [UIColor colorWithRed:0.0 green:1.0 blue:0.8 alpha:0.3]};
@@ -1199,34 +1171,16 @@ static inline float Vector3Distance(Vector3 a, Vector3 b) {
     
     UIImage *result = UIGraphicsGetImageFromCurrentImageContext();
     UIGraphicsEndImageContext();
-    return result;
-}
-
-- (void)loadImageFromURL:(NSString *)urlString {
-    NSURL *url = [NSURL URLWithString:urlString];
-    NSURLSession *session = [NSURLSession sharedSession];
-    NSURLSessionDataTask *task = [session dataTaskWithURL:url completionHandler:^(NSData *data, NSURLResponse *response, NSError *error) {
-        if (data && !error) {
-            dispatch_async(dispatch_get_main_queue(), ^{
-                UIImage *image = [UIImage imageWithData:data];
-                if (image) {
-                    self.menuBackgroundImageView.image = image;
-                }
-            });
-        }
-    }];
-    [task resume];
+    self.menuBackgroundImageView.image = result;
 }
 
 - (void)handleMenuPan:(UIPanGestureRecognizer *)gesture {
     CGPoint translation = [gesture translationInView:self.view];
     CGPoint newCenter = CGPointMake(self.menuView.center.x + translation.x, self.menuView.center.y + translation.y);
-    
     CGFloat halfWidth = self.menuView.frame.size.width / 2;
     CGFloat halfHeight = self.menuView.frame.size.height / 2;
     newCenter.x = MAX(halfWidth, MIN(self.view.bounds.size.width - halfWidth, newCenter.x));
     newCenter.y = MAX(halfHeight, MIN(self.view.bounds.size.height - halfHeight, newCenter.y));
-    
     self.menuView.center = newCenter;
     [gesture setTranslation:CGPointZero inView:self.view];
 }
@@ -1236,8 +1190,7 @@ static inline float Vector3Distance(Vector3 a, Vector3 b) {
 // ============================================================
 
 - (void)onMenuButtonTap:(UIButton *)sender {
-    NSString *actionName = objc_getAssociatedObject(sender, "actionName");
-    NSString *title = sender.titleLabel.text;
+    NSString *featureTitle = objc_getAssociatedObject(sender, "featureTitle");
     
     // Toggle button state
     sender.tag = sender.tag == 0 ? 1 : 0;
@@ -1252,52 +1205,38 @@ static inline float Vector3Distance(Vector3 a, Vector3 b) {
     BOOL isOn = sender.tag == 1;
     NSString *status = isOn ? @"✅ ON" : @"❌ OFF";
     
-    // Gọi hàm tương ứng
-    if ([actionName isEqualToString:@"toggleAimbot"]) {
+    if ([featureTitle isEqualToString:@"Aimbot"]) {
         [self.hackManager enableAimbot:isOn];
-        [self showToast:[NSString stringWithFormat:@"🎯 Aimbot %@", status]];
-    } else if ([actionName isEqualToString:@"toggleESP"]) {
+    } else if ([featureTitle isEqualToString:@"ESP"]) {
         [self.hackManager enableESP:isOn];
-        [self showToast:[NSString stringWithFormat:@"👁️ ESP %@", status]];
-    } else if ([actionName isEqualToString:@"toggleFly"]) {
+    } else if ([featureTitle isEqualToString:@"Fly"]) {
         [self.hackManager enableFlyHack:isOn];
-        [self showToast:[NSString stringWithFormat:@"🪄 Fly %@", status]];
-    } else if ([actionName isEqualToString:@"toggleGod"]) {
+    } else if ([featureTitle isEqualToString:@"God Mode"]) {
         [self.hackManager enableGodMode:isOn];
-        [self showToast:[NSString stringWithFormat:@"💉 God Mode %@", status]];
-    } else if ([actionName isEqualToString:@"toggleSpeed"]) {
+    } else if ([featureTitle isEqualToString:@"Speed"]) {
         [self.hackManager enableSpeedHack:isOn];
-        [self showToast:[NSString stringWithFormat:@"⚡ Speed %@", status]];
-    } else if ([actionName isEqualToString:@"toggleWall"]) {
+    } else if ([featureTitle isEqualToString:@"Wall"]) {
         [self.hackManager enableWallHack:isOn];
-        [self showToast:[NSString stringWithFormat:@"🛡️ Wall %@", status]];
-    } else if ([actionName isEqualToString:@"toggleRadar"]) {
+    } else if ([featureTitle isEqualToString:@"Radar"]) {
         [self.hackManager enableRadar:isOn];
-        [self showToast:[NSString stringWithFormat:@"📡 Radar %@", status]];
-    } else if ([actionName isEqualToString:@"toggleChams"]) {
+    } else if ([featureTitle isEqualToString:@"Chams"]) {
         [self.hackManager enableChams:isOn];
-        [self showToast:[NSString stringWithFormat:@"🎨 Chams %@", status]];
-    } else if ([actionName isEqualToString:@"toggleNoRecoil"]) {
+    } else if ([featureTitle isEqualToString:@"No Recoil"]) {
         [self.hackManager enableNoRecoil:isOn];
-        [self showToast:[NSString stringWithFormat:@"🔫 No Recoil %@", status]];
-    } else if ([actionName isEqualToString:@"toggleTrigger"]) {
+    } else if ([featureTitle isEqualToString:@"Trigger"]) {
         [self.hackManager enableTriggerBot:isOn];
-        [self showToast:[NSString stringWithFormat:@"🎮 Trigger %@", status]];
-    } else if ([actionName isEqualToString:@"toggleAmmo"]) {
+    } else if ([featureTitle isEqualToString:@"Infinite Ammo"]) {
         [self.hackManager enableInfiniteAmmo:isOn];
-        [self showToast:[NSString stringWithFormat:@"🔫 Infinite Ammo %@", status]];
-    } else if ([actionName isEqualToString:@"toggleTeleport"]) {
+    } else if ([featureTitle isEqualToString:@"Teleport"]) {
         [self.hackManager enableTeleport:isOn];
-        [self showToast:[NSString stringWithFormat:@"🌀 Teleport %@", status]];
-    } else if ([actionName isEqualToString:@"toggleYouTube"]) {
+    } else if ([featureTitle isEqualToString:@"YouTube"]) {
         if (isOn) {
             [[YouTubeMusicPlayer shared] playSong:nil];
-            [self showToast:@"🎵 YouTube Music ON"];
         } else {
             [[YouTubeMusicPlayer shared] stop];
-            [self showToast:@"🎵 YouTube Music OFF"];
         }
     }
+    [self showToast:[NSString stringWithFormat:@"%@ %@", featureTitle, status]];
 }
 
 - (void)showToast:(NSString *)message {
@@ -1327,7 +1266,7 @@ static inline float Vector3Distance(Vector3 a, Vector3 b) {
     self.mainFloatingButton.iconLabel.font = [UIFont boldSystemFontOfSize:28];
     self.mainFloatingButton.iconLabel.textColor = [UIColor colorWithRed:0.0 green:1.0 blue:1.0 alpha:0.9];
     self.mainFloatingButton.statusLabel.hidden = YES;
-    self.mainFloatingButton.titleLabel.hidden = YES;
+    self.mainFloatingButton.floatingTitleLabel.hidden = YES;
     [self.mainFloatingButton addTarget:self action:@selector(onMainFloatingButtonTap) forControlEvents:UIControlEventTouchUpInside];
     [self.view addSubview:self.mainFloatingButton];
     [self startPulseAnimation];
@@ -1349,7 +1288,7 @@ static inline float Vector3Distance(Vector3 a, Vector3 b) {
 }
 
 // ============================================================
-// FLOATING BUTTONS (AIM, FLY, GHOST, TELEMARK, HAI SUNG)
+// FLOATING BUTTONS
 // ============================================================
 
 - (void)setupFloatingButtons {
@@ -1361,11 +1300,11 @@ static inline float Vector3Distance(Vector3 a, Vector3 b) {
     CGFloat spacing = 5;
     
     NSArray *buttonConfigs = @[
-        @{@"title": @"AIM", @"icon": @"🎯", @"action": @"toggleAimbot"},
-        @{@"title": @"Fly", @"icon": @"🪄", @"action": @"toggleFly"},
-        @{@"title": @"Ghost", @"icon": @"👻", @"action": @"toggleESP"},
-        @{@"title": @"TeleMark", @"icon": @"🌀", @"action": @"toggleTeleport"},
-        @{@"title": @"Hai Sung", @"icon": @"🔫", @"action": @"toggleAmmo"}
+        @{@"title": @"AIM", @"icon": @"🎯", @"feature": @"Aimbot"},
+        @{@"title": @"Fly", @"icon": @"🪄", @"feature": @"Fly"},
+        @{@"title": @"Ghost", @"icon": @"👻", @"feature": @"ESP"},
+        @{@"title": @"TeleMark", @"icon": @"🌀", @"feature": @"Teleport"},
+        @{@"title": @"Hai Sung", @"icon": @"🔫", @"feature": @"Infinite Ammo"}
     ];
     
     for (int i = 0; i < buttonConfigs.count; i++) {
@@ -1378,7 +1317,7 @@ static inline float Vector3Distance(Vector3 a, Vector3 b) {
             icon:config[@"icon"]];
         btn.tag = i;
         btn.backgroundColor = [UIColor colorWithWhite:0.1 alpha:0.7];
-        objc_setAssociatedObject(btn, "actionName", config[@"action"], OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+        objc_setAssociatedObject(btn, "featureName", config[@"feature"], OBJC_ASSOCIATION_RETAIN_NONATOMIC);
         [btn addTarget:self action:@selector(onFloatingButtonTap:) forControlEvents:UIControlEventTouchUpInside];
         [self.view addSubview:btn];
         [self.floatingButtons addObject:btn];
@@ -1387,27 +1326,22 @@ static inline float Vector3Distance(Vector3 a, Vector3 b) {
 
 - (void)onFloatingButtonTap:(FluckFloatingButton *)sender {
     [sender toggle];
-    NSString *actionName = objc_getAssociatedObject(sender, "actionName");
-    NSString *title = sender.titleLabel.text;
+    NSString *featureName = objc_getAssociatedObject(sender, "featureName");
     BOOL isOn = sender.isOn;
     NSString *status = isOn ? @"✅ ON" : @"❌ OFF";
     
-    if ([actionName isEqualToString:@"toggleAimbot"]) {
+    if ([featureName isEqualToString:@"Aimbot"]) {
         [self.hackManager enableAimbot:isOn];
-        [self showToast:[NSString stringWithFormat:@"🎯 Aimbot %@", status]];
-    } else if ([actionName isEqualToString:@"toggleFly"]) {
+    } else if ([featureName isEqualToString:@"Fly"]) {
         [self.hackManager enableFlyHack:isOn];
-        [self showToast:[NSString stringWithFormat:@"🪄 Fly %@", status]];
-    } else if ([actionName isEqualToString:@"toggleESP"]) {
+    } else if ([featureName isEqualToString:@"ESP"]) {
         [self.hackManager enableESP:isOn];
-        [self showToast:[NSString stringWithFormat:@"👻 Ghost %@", status]];
-    } else if ([actionName isEqualToString:@"toggleTeleport"]) {
+    } else if ([featureName isEqualToString:@"Teleport"]) {
         [self.hackManager enableTeleport:isOn];
-        [self showToast:[NSString stringWithFormat:@"🌀 TeleMark %@", status]];
-    } else if ([actionName isEqualToString:@"toggleAmmo"]) {
+    } else if ([featureName isEqualToString:@"Infinite Ammo"]) {
         [self.hackManager enableInfiniteAmmo:isOn];
-        [self showToast:[NSString stringWithFormat:@"🔫 Hai Sung %@", status]];
     }
+    [self showToast:[NSString stringWithFormat:@"%@ %@", sender.floatingTitleLabel.text, status]];
 }
 
 // ============================================================
@@ -1514,7 +1448,6 @@ static inline float Vector3Distance(Vector3 a, Vector3 b) {
         self.menuView.hidden = NO;
         self.mainFloatingButton.hidden = YES;
         [self.mainFloatingButton.layer removeAnimationForKey:@"pulse"];
-        // Hiệu ứng zoom in cho menu
         self.menuView.transform = CGAffineTransformMakeScale(0.5, 0.5);
         self.menuView.alpha = 0;
         [UIView animateWithDuration:0.3 delay:0 usingSpringWithDamping:0.7 initialSpringVelocity:0.5 options:0 animations:^{
@@ -1645,14 +1578,13 @@ static inline float Vector3Distance(Vector3 a, Vector3 b) {
         self.menuVC.view.frame = self.overlayWindow.bounds;
         self.menuVC.view.backgroundColor = [UIColor clearColor];
         self.menuVC.view.userInteractionEnabled = YES;
-        self.menuVC.overlayWindow = self.overlayWindow;
+        self.menuVC.overlayWindow = (__bridge UIWindow *)(__bridge void *)self.overlayWindow;
         self.overlayWindow.rootViewController = self.menuVC;
         self.menuVC.view.hidden = NO;
         self.menuVC.menuView.hidden = YES;
         
         self.overlayWindow.userInteractionEnabled = YES;
         
-        // Show menu sau 0.5s
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 0.5 * NSEC_PER_SEC), dispatch_get_main_queue(), ^{
             [self.menuVC toggleMenu];
         });
