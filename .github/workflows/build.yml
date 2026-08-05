@@ -13,7 +13,7 @@ jobs:
     
     steps:
     - name: Checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
     
     - name: Setup Xcode
       uses: maxim-lobanov/setup-xcode@v1
@@ -47,14 +47,20 @@ jobs:
         cd fluck
         make
         
-    - name: Upload dylib
-      uses: actions/upload-artifact@v3
+    - name: Upload dylib (v4)
+      uses: actions/upload-artifact@v4
       with:
-        name: fluck
+        name: fluck-dylib
         path: fluck/.theos/obj/debug/fluck.dylib
+        if-no-files-found: error
+        compression-level: 6
+        overwrite: true
 
-    - name: Upload deb package
-      uses: actions/upload-artifact@v3
+    - name: Upload deb package (v4)
+      uses: actions/upload-artifact@v4
       with:
-        name: fluck-package
+        name: fluck-deb
         path: fluck/*.deb
+        if-no-files-found: error
+        compression-level: 6
+        overwrite: true
