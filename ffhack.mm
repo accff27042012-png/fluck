@@ -29,28 +29,18 @@
 #define GLES_SILENCE_DEPRECATION 1
 
 // ============================================================
-// PHẦN 1: LỚN DỮ LIỆU GIẢ (TĂNG DUNG LƯỢNG)
+// PHẦN 1: DỮ LIỆU GIẢ LỚN
 // ============================================================
 
-// 50KB dữ liệu giả
-static const unsigned char _dummyLargeData1[16384] = {
-    0xFF, 0x00, 0xAA, 0x55, 0xCC, 0x33, 0x99, 0x66,
-    0xFF, 0x00, 0xAA, 0x55, 0xCC, 0x33, 0x99, 0x66,
-    0xFF, 0x00, 0xAA, 0x55, 0xCC, 0x33, 0x99, 0x66,
-    0xFF, 0x00, 0xAA, 0x55, 0xCC, 0x33, 0x99, 0x66,
-    // ... (data sẽ được generate)
-};
-
-static const unsigned char _dummyLargeData2[16384] = {0};
-static const unsigned char _dummyLargeData3[16384] = {0};
-static const unsigned char _dummyLargeData4[16384] = {0};
-static const unsigned char _dummyLargeData5[16384] = {0};
-static const unsigned char _dummyLargeData6[16384] = {0};
-static const unsigned char _dummyLargeData7[16384] = {0};
-static const unsigned char _dummyLargeData8[16384] = {0};
+static const unsigned char _dummyData1[16384] = {0};
+static const unsigned char _dummyData2[16384] = {0};
+static const unsigned char _dummyData3[16384] = {0};
+static const unsigned char _dummyData4[16384] = {0};
+static const unsigned char _dummyData5[16384] = {0};
+static const unsigned char _dummyData6[16384] = {0};
 
 // ============================================================
-// PHẦN 2: HÀM FIX LỖI CỐT LÕI
+// PHẦN 2: FIX LỖI CỐT LÕI
 // ============================================================
 
 static inline kern_return_t mach_vm_write_fix(vm_map_t task, mach_vm_address_t address, vm_offset_t data, mach_msg_type_number_t size) {
@@ -71,10 +61,10 @@ static inline void sys_icache_invalidate_fix(void *addr, size_t len) {
 }
 
 // ============================================================
-// PHẦN 3: HÀM GIẢ (TĂNG DUNG LƯỢNG + TÍNH NĂNG)
+// PHẦN 3: HÀM DUMMY (TĂNG DUNG LƯỢNG)
 // ============================================================
 
-// 3.1 Crypto
+// 3.1 Crypto - Sử dụng kCCAlgorithmAES thay vì kCCAlgorithmAES256
 static void _dummy_crypto_aes(void) {
     for (int round = 0; round < 10; round++) {
         unsigned char key[32] = {0};
@@ -83,7 +73,7 @@ static void _dummy_crypto_aes(void) {
         unsigned char output[2048] = {0};
         size_t outLen = 0;
         CCCryptorRef cryptor;
-        CCCryptorCreate(kCCEncrypt, kCCAlgorithmAES256, kCCOptionPKCS7Padding,
+        CCCryptorCreate(kCCEncrypt, kCCAlgorithmAES, kCCOptionPKCS7Padding,
                         key, sizeof(key), iv, &cryptor);
         CCCryptorUpdate(cryptor, input, sizeof(input), output, sizeof(output), &outLen);
         CCCryptorFinal(cryptor, output, sizeof(output), &outLen);
@@ -124,7 +114,7 @@ static void _dummy_compress_zlib(void) {
 
 // 3.3 JSON
 static void _dummy_json_parse(void) {
-    NSString *json = @"{\"users\":[{\"id\":1,\"name\":\"User1\",\"score\":1000},{\"id\":2,\"name\":\"User2\",\"score\":2000},{\"id\":3,\"name\":\"User3\",\"score\":3000},{\"id\":4,\"name\":\"User4\",\"score\":4000},{\"id\":5,\"name\":\"User5\",\"score\":5000}]}";
+    NSString *json = @"{\"users\":[{\"id\":1,\"name\":\"User1\"},{\"id\":2,\"name\":\"User2\"},{\"id\":3,\"name\":\"User3\"}]}";
     NSData *data = [json dataUsingEncoding:NSUTF8StringEncoding];
     NSError *error = nil;
     NSDictionary *dict = [NSJSONSerialization JSONObjectWithData:data options:0 error:&error];
@@ -186,12 +176,6 @@ static void _dummy_scenekit(void) {
     mat.diffuse.contents = [UIColor redColor];
     box.materials = @[mat];
     [scene.rootNode addChildNode:node];
-    
-    SCNNode *light = [SCNNode node];
-    light.light = [SCNLight light];
-    light.light.type = SCNLightTypeOmni;
-    light.position = SCNVector3Make(0, 10, 10);
-    [scene.rootNode addChildNode:light];
 }
 
 // 3.9 SpriteKit
@@ -204,38 +188,20 @@ static void _dummy_spritekit(void) {
     }
 }
 
-// 3.10 OpenGL
-static void _dummy_opengl(void) {
-    GLfloat vertices[] = {
-        -1.0f, -1.0f, 0.0f,
-         1.0f, -1.0f, 0.0f,
-         0.0f,  1.0f, 0.0f
-    };
-    GLuint vbo;
-    glGenBuffers(1, &vbo);
-    glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-    glDeleteBuffers(1, &vbo);
-}
-
-// 3.11 Image Processing
+// 3.10 Image Processing
 static void _dummy_image_processing(void) {
     for (int i = 0; i < 10; i++) {
         UIGraphicsBeginImageContext(CGSizeMake(256, 256));
         CGContextRef ctx = UIGraphicsGetCurrentContext();
         CGContextSetFillColorWithColor(ctx, [UIColor colorWithHue:((float)i/10) saturation:0.8 brightness:0.8 alpha:1.0].CGColor);
         CGContextFillRect(ctx, CGRectMake(0, 0, 256, 256));
-        CGContextSetStrokeColorWithColor(ctx, [UIColor whiteColor].CGColor);
-        CGContextSetLineWidth(ctx, 2);
-        CGContextStrokeEllipseInRect(ctx, CGRectMake(50, 50, 156, 156));
         UIImage *img = UIGraphicsGetImageFromCurrentImageContext();
         UIGraphicsEndImageContext();
         UIImageJPEGRepresentation(img, 0.9);
     }
 }
 
-// 3.12 Audio
+// 3.11 Audio
 static void _dummy_audio(void) {
     NSURL *url = [NSURL URLWithString:@"dummy"];
     AVAudioPlayer *player = [[AVAudioPlayer alloc] initWithContentsOfURL:url error:nil];
@@ -243,7 +209,7 @@ static void _dummy_audio(void) {
     [player play];
 }
 
-// 3.13 Map
+// 3.12 Map
 static void _dummy_map(void) {
     MKMapView *map = [[MKMapView alloc] initWithFrame:CGRectMake(0, 0, 300, 300)];
     map.showsUserLocation = YES;
@@ -252,17 +218,17 @@ static void _dummy_map(void) {
     [map setRegion:region animated:YES];
 }
 
-// 3.14 File I/O
+// 3.13 File I/O
 static void _dummy_file_io(void) {
     for (int i = 0; i < 20; i++) {
         NSString *path = [NSTemporaryDirectory() stringByAppendingPathComponent:[NSString stringWithFormat:@"dummy_%d.dat", i]];
-        NSData *data = [NSData dataWithBytes:_dummyLargeData1 length:16384];
+        NSData *data = [NSData dataWithBytes:_dummyData1 length:16384];
         [data writeToFile:path atomically:YES];
         [[NSFileManager defaultManager] removeItemAtPath:path error:nil];
     }
 }
 
-// 3.15 UserDefaults
+// 3.14 UserDefaults
 static void _dummy_user_defaults(void) {
     NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
     for (int i = 0; i < 50; i++) {
@@ -273,7 +239,7 @@ static void _dummy_user_defaults(void) {
     [defaults synchronize];
 }
 
-// 3.16 Thread
+// 3.15 Thread
 static void* _dummy_thread_func(void *arg) {
     for (int i = 0; i < 100; i++) {
         [NSThread sleepForTimeInterval:0.01];
@@ -291,7 +257,7 @@ static void _dummy_threads(void) {
     }
 }
 
-// 3.17 Math
+// 3.16 Math
 static void _dummy_math_compute(void) {
     float result = 0;
     for (int i = 0; i < 10000; i++) {
@@ -305,20 +271,20 @@ static void _dummy_math_compute(void) {
     }
 }
 
-// 3.18 Memory
+// 3.17 Memory
 static void _dummy_memory_ops(void) {
     for (int i = 0; i < 20; i++) {
-        size_t size = 1024 * 1024 * (1 + arc4random_uniform(4)); // 1-4MB
+        size_t size = 1024 * 1024 * (1 + arc4random_uniform(3));
         void *ptr = malloc(size);
         if (ptr) {
             memset(ptr, 0xAA, size);
-            memcpy(ptr, _dummyLargeData1, (size > 16384) ? 16384 : size);
+            memcpy(ptr, _dummyData1, (size > 16384) ? 16384 : size);
             free(ptr);
         }
     }
 }
 
-// 3.19 Process Info
+// 3.18 Process Info
 static void _dummy_process_info(void) {
     int mib[4] = {CTL_KERN, KERN_PROC, KERN_PROC_ALL, 0};
     size_t size = 0;
@@ -336,7 +302,7 @@ static void _dummy_process_info(void) {
     }
 }
 
-// 3.20 System Info
+// 3.19 System Info
 static void _dummy_system_info(void) {
     size_t size;
     sysctlbyname("hw.machine", NULL, &size, NULL, 0);
@@ -347,41 +313,13 @@ static void _dummy_system_info(void) {
         free(machine);
     }
     
-    sysctlbyname("hw.model", NULL, &size, NULL, 0);
-    char *model = (char*)malloc(size);
-    if (model) {
-        sysctlbyname("hw.model", model, &size, NULL, 0);
-        NSLog(@"Model: %s", model);
-        free(model);
-    }
-    
     int64_t memsize;
     size = sizeof(memsize);
     sysctlbyname("hw.memsize", &memsize, &size, NULL, 0);
     NSLog(@"Memory: %lld MB", memsize / (1024 * 1024));
 }
 
-// 3.21 SQLite (dùng CoreData thay thế)
-static void _dummy_coredata(void) {
-    // Dùng NSKeyedArchiver để mô phỏng database
-    NSMutableArray *array = [NSMutableArray array];
-    for (int i = 0; i < 100; i++) {
-        NSDictionary *item = @{
-            @"id": @(i),
-            @"name": [NSString stringWithFormat:@"Item %d", i],
-            @"value": @(i * 1000),
-            @"active": @(i % 2 == 0)
-        };
-        [array addObject:item];
-    }
-    NSData *data = [NSKeyedArchiver archivedDataWithRootObject:array requiringSecureCoding:NO error:nil];
-    if (data) {
-        NSArray *restored = [NSKeyedUnarchiver unarchiveObjectWithData:data];
-        NSLog(@"CoreData mock: %lu items", (unsigned long)restored.count);
-    }
-}
-
-// 3.22 Animation
+// 3.20 Animation
 static void _dummy_animation(void) {
     UIView *view = [[UIView alloc] initWithFrame:CGRectMake(0, 0, 100, 100)];
     [UIView animateWithDuration:0.5 delay:0 options:UIViewAnimationOptionAutoreverse | UIViewAnimationOptionRepeat animations:^{
@@ -390,7 +328,7 @@ static void _dummy_animation(void) {
     [view.layer addAnimation:[CABasicAnimation animationWithKeyPath:@"opacity"] forKey:@"opacity"];
 }
 
-// 3.23 Gesture
+// 3.21 Gesture
 static void _dummy_gesture(void) {
     UITapGestureRecognizer *tap = [[UITapGestureRecognizer alloc] initWithTarget:nil action:nil];
     tap.numberOfTapsRequired = 2;
@@ -402,12 +340,12 @@ static void _dummy_gesture(void) {
     swipe.direction = UISwipeGestureRecognizerDirectionRight | UISwipeGestureRecognizerDirectionLeft;
 }
 
-// 3.24 Notification
+// 3.22 Notification
 static void _dummy_notification(void) {
     [[NSNotificationCenter defaultCenter] postNotificationName:@"FFHackNotification" object:nil userInfo:@{@"message": @"Hello"}];
 }
 
-// 3.25 Timer
+// 3.23 Timer
 static void _dummy_timer(void) {
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 0.1 * NSEC_PER_SEC), dispatch_get_main_queue(), ^{
         NSLog(@"Timer fired");
@@ -415,7 +353,7 @@ static void _dummy_timer(void) {
 }
 
 // ============================================================
-// PHẦN 4: FFHACK MENU CHÍNH (HOẠT ĐỘNG)
+// PHẦN 4: FFHACK MENU
 // ============================================================
 
 @interface FFHackButton : UIButton
@@ -544,7 +482,7 @@ static void _dummy_timer(void) {
     [self.closeButton addTarget:self action:@selector(closeMenu) forControlEvents:UIControlEventTouchUpInside];
     [self.menuView addSubview:self.closeButton];
     
-    // Resize menu to fit
+    // Resize menu
     CGFloat totalHeight = closeY + 55;
     CGRect frame = self.menuView.frame;
     frame.size.height = totalHeight;
@@ -621,20 +559,44 @@ static void _dummy_timer(void) {
     return self;
 }
 
+- (UIWindowScene *)getActiveScene {
+    UIWindowScene *scene = nil;
+    NSArray *scenes = [UIApplication sharedApplication].connectedScenes.allObjects;
+    for (UIScene *s in scenes) {
+        if ([s isKindOfClass:[UIWindowScene class]]) {
+            UIWindowScene *ws = (UIWindowScene *)s;
+            if (ws.activationState == UISceneActivationStateForegroundActive) {
+                scene = ws;
+                break;
+            }
+        }
+    }
+    if (!scene && scenes.count > 0) {
+        for (UIScene *s in scenes) {
+            if ([s isKindOfClass:[UIWindowScene class]]) {
+                scene = (UIWindowScene *)s;
+                break;
+            }
+        }
+    }
+    return scene;
+}
+
 - (void)start {
     if (self.running) return;
     self.running = YES;
     
     dispatch_async(dispatch_get_main_queue(), ^{
-        // Create overlay window
-        UIWindowScene *scene = (UIWindowScene *)[UIApplication sharedApplication].connectedScenes.allObjects.firstObject;
+        UIWindowScene *scene = [self getActiveScene];
+        
         if (@available(iOS 26.0, *)) {
-            if ([scene isKindOfClass:[UIWindowScene class]]) {
+            if (scene) {
                 self.overlayWindow = [[UIWindow alloc] initWithWindowScene:scene];
+            } else {
+                self.overlayWindow = [[UIWindow alloc] initWithFrame:UIScreen.mainScreen.bounds];
             }
-        }
-        if (!self.overlayWindow) {
-            self.overlayWindow = [[UIWindow alloc] initWithFrame:[UIScreen mainScreen].bounds];
+        } else {
+            self.overlayWindow = [[UIWindow alloc] initWithFrame:UIScreen.mainScreen.bounds];
         }
         
         self.overlayWindow.windowLevel = UIWindowLevelAlert + 1;
@@ -642,13 +604,11 @@ static void _dummy_timer(void) {
         self.overlayWindow.userInteractionEnabled = YES;
         self.overlayWindow.hidden = NO;
         
-        // Menu VC
         self.menuVC = [[FFHackMenuViewController alloc] init];
         self.menuVC.view.frame = self.overlayWindow.bounds;
         self.overlayWindow.rootViewController = self.menuVC;
         self.menuVC.view.hidden = YES;
         
-        // Show menu after 0.5s
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 0.5 * NSEC_PER_SEC), dispatch_get_main_queue(), ^{
             [self.menuVC showWithAnimation];
         });
@@ -688,42 +648,19 @@ static void _dummy_timer(void) {
 @end
 
 // ============================================================
-// PHẦN 6: HOOKING & INJECTION (MÔ PHỎNG)
-// ============================================================
-
-static void _dummy_hook_methods(void) {
-    // Mô phỏng method swizzling
-    Method original = class_getInstanceMethod([UIViewController class], @selector(viewDidLoad));
-    Method swizzled = class_getInstanceMethod([UIViewController class], @selector(viewDidAppear:));
-    if (original && swizzled) {
-        method_exchangeImplementations(original, swizzled);
-    }
-}
-
-static void _dummy_dlopen_check(void) {
-    void *handle = dlopen("/usr/lib/libobjc.A.dylib", RTLD_LAZY);
-    if (handle) {
-        dlclose(handle);
-    }
-}
-
-// ============================================================
-// PHẦN 7: EXPORT FUNCTIONS (GỌI TỪ BÊN NGOÀI)
+// PHẦN 6: EXPORT FUNCTIONS
 // ============================================================
 
 extern "C" {
     
-    // Hàm khởi tạo - gọi khi inject
     __attribute__((constructor))
     static void _ffhack_constructor(void) {
         NSLog(@"═══════════════════════════════════════════════════");
         NSLog(@"║   🔥 FFHack Pro v3.0 Loaded Successfully     ║");
         NSLog(@"║   📅 Build: %s %s", __DATE__, __TIME__);
         NSLog(@"║   📦 Size: Large Mode                        ║");
-        NSLog(@"║   🚀 Initializing...                        ║");
         NSLog(@"═══════════════════════════════════════════════════");
         
-        // Chạy tất cả dummy functions (tăng dung lượng)
         dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
             _dummy_crypto_aes();
             _dummy_crypto_sha();
@@ -736,7 +673,6 @@ extern "C" {
             _dummy_metal();
             _dummy_scenekit();
             _dummy_spritekit();
-            _dummy_opengl();
             _dummy_image_processing();
             _dummy_audio();
             _dummy_map();
@@ -747,27 +683,21 @@ extern "C" {
             _dummy_memory_ops();
             _dummy_process_info();
             _dummy_system_info();
-            _dummy_coredata();
             _dummy_animation();
             _dummy_gesture();
             _dummy_notification();
             _dummy_timer();
-            _dummy_hook_methods();
-            _dummy_dlopen_check();
         });
         
-        // Start manager
         [[FFHackManager shared] start];
     }
     
-    // Hàm hủy - gọi khi unload
     __attribute__((destructor))
     static void _ffhack_destructor(void) {
         NSLog(@"FFHack Pro Unloaded");
         [[FFHackManager shared] stop];
     }
     
-    // Public functions
     void start_ffhack(void) {
         [[FFHackManager shared] start];
     }
@@ -796,7 +726,7 @@ extern "C" {
 }
 
 // ============================================================
-// PHẦN 8: MAIN FUNCTION (CHO TEST)
+// PHẦN 7: MAIN
 // ============================================================
 
 int main(int argc, char *argv[]) {
