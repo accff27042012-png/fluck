@@ -8,4 +8,7 @@ fluck_FILES = Tweak.xm
 fluck_CFLAGS = -fobjc-arc -O2 -Wno-deprecated-declarations -Wno-error
 fluck_FRAMEWORKS = UIKit Foundation CoreGraphics QuartzCore
 
+# Tắt ký mã (cho build trên GitHub Actions)
+_TARGET_CODESIGN = echo
+
 include $(THEOS_MAKE_PATH)/tweak.mk
