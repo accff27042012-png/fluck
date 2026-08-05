@@ -35,14 +35,12 @@ static kern_return_t mach_vm_read_overwrite_fix(vm_map_t task, mach_vm_address_t
 // FREE FIRE OFFSETS
 // ============================================================
 
-// Base Offsets
 #define OFF_BASE_ADDRESS         0x2C9B3C8
 #define OFF_ENTITY_LIST          0x2C9B3D0
 #define OFF_ENTITY_COUNT         0x2C9B3D4
 #define OFF_LOCAL_PLAYER         0x2C9B3DC
 #define OFF_VIEW_MATRIX          0x2C9B3E0
 
-// Player Offsets
 #define OFF_PLAYER_POS_X         0x128
 #define OFF_PLAYER_POS_Y         0x12C
 #define OFF_PLAYER_POS_Z         0x130
@@ -59,7 +57,6 @@ static kern_return_t mach_vm_read_overwrite_fix(vm_map_t task, mach_vm_address_t
 #define OFF_PLAYER_SPEED         0x1B0
 #define OFF_PLAYER_WEAPON        0x1C0
 
-// Weapon Offsets
 #define OFF_WEAPON_AMMO          0x210
 #define OFF_WEAPON_MAX_AMMO      0x214
 #define OFF_WEAPON_DAMAGE        0x218
@@ -68,7 +65,6 @@ static kern_return_t mach_vm_read_overwrite_fix(vm_map_t task, mach_vm_address_t
 #define OFF_WEAPON_RECOIL        0x224
 #define OFF_WEAPON_TYPE          0x228
 
-// ESP Offsets
 #define OFF_ESP_BOX_X            0x1D0
 #define OFF_ESP_BOX_Y            0x1D4
 #define OFF_ESP_BOX_W            0x1D8
@@ -76,7 +72,6 @@ static kern_return_t mach_vm_read_overwrite_fix(vm_map_t task, mach_vm_address_t
 #define OFF_ESP_DISTANCE         0x1E0
 #define OFF_ESP_ANGLE            0x1E4
 
-// Camera Offsets
 #define OFF_CAMERA_VIEW_MATRIX   0x1000
 #define OFF_CAMERA_PROJ_MATRIX   0x1040
 #define OFF_CAMERA_ANGLE_X       0x10C0
@@ -153,24 +148,31 @@ static inline float Vector3Distance(Vector3 a, Vector3 b) {
     return sqrtf(dx*dx + dy*dy + dz*dz);
 }
 
-static inline Vector3 Vector3Add(Vector3 a, Vector3 b) {
-    return Vector3Make(a.x + b.x, a.y + b.y, a.z + b.z);
-}
+// ============================================================
+// HELPER: GET KEY WINDOW (FIX DEPRECATED)
+// ============================================================
 
-static inline Vector3 Vector3Subtract(Vector3 a, Vector3 b) {
-    return Vector3Make(a.x - b.x, a.y - b.y, a.z - b.z);
-}
-
-static inline Vector3 Vector3Multiply(Vector3 v, float scalar) {
-    return Vector3Make(v.x * scalar, v.y * scalar, v.z * scalar);
-}
-
-static inline Vector3 Vector3Normalize(Vector3 v) {
-    float len = sqrtf(v.x*v.x + v.y*v.y + v.z*v.z);
-    if (len > 0) {
-        return Vector3Make(v.x/len, v.y/len, v.z/len);
+static UIWindow* GetKeyWindow(void) {
+    UIWindowScene *scene = nil;
+    NSArray *scenes = [UIApplication sharedApplication].connectedScenes.allObjects;
+    for (UIScene *s in scenes) {
+        if ([s isKindOfClass:[UIWindowScene class]]) {
+            UIWindowScene *ws = (UIWindowScene *)s;
+            if (ws.activationState == UISceneActivationStateForegroundActive) {
+                scene = ws;
+                break;
+            }
+        }
     }
-    return Vector3Make(0, 0, 0);
+    if (!scene && scenes.count > 0) {
+        for (UIScene *s in scenes) {
+            if ([s isKindOfClass:[UIWindowScene class]]) {
+                scene = (UIWindowScene *)s;
+                break;
+            }
+        }
+    }
+    return scene ? scene.windows.firstObject : nil;
 }
 
 // ============================================================
@@ -188,7 +190,6 @@ static inline Vector3 Vector3Normalize(Vector3 v) {
 - (void)writeFloat:(uintptr_t)address value:(float)value;
 - (void)writeInt:(uintptr_t)address value:(int)value;
 
-// Hack functions
 - (void)enableAimbot:(BOOL)enable;
 - (void)enableESP:(BOOL)enable;
 - (void)enableFlyHack:(BOOL)enable;
@@ -211,7 +212,6 @@ static inline Vector3 Vector3Normalize(Vector3 v) {
 @property (nonatomic, assign) BOOL noRecoilEnabled;
 @property (nonatomic, assign) BOOL triggerBotEnabled;
 @property (nonatomic, assign) uintptr_t baseAddress;
-@property (nonatomic, assign) BOOL isHooked;
 @property (nonatomic, strong) NSTimer *hackTimer;
 @end
 
@@ -230,7 +230,6 @@ static inline Vector3 Vector3Normalize(Vector3 v) {
     self = [super init];
     if (self) {
         self.baseAddress = 0;
-        self.isHooked = NO;
         self.aimbotEnabled = NO;
         self.espEnabled = NO;
         self.flyHackEnabled = NO;
@@ -241,15 +240,10 @@ static inline Vector3 Vector3Normalize(Vector3 v) {
         self.chamsEnabled = NO;
         self.noRecoilEnabled = NO;
         self.triggerBotEnabled = NO;
-        
         [self findBaseAddress];
     }
     return self;
 }
-
-// ============================================================
-// MEMORY FUNCTIONS
-// ============================================================
 
 - (uintptr_t)getBaseAddress {
     if (self.baseAddress == 0) {
@@ -259,24 +253,19 @@ static inline Vector3 Vector3Normalize(Vector3 v) {
 }
 
 - (void)findBaseAddress {
-    // Tìm process Free Fire
     int mib[4] = {CTL_KERN, KERN_PROC, KERN_PROC_ALL, 0};
     size_t size = 0;
     sysctl(mib, 4, NULL, &size, NULL, 0);
-    
     if (size > 0) {
         struct kinfo_proc *procs = (struct kinfo_proc*)malloc(size);
         if (procs) {
             sysctl(mib, 4, procs, &size, NULL, 0);
             int count = size / sizeof(struct kinfo_proc);
-            
             for (int i = 0; i < count; i++) {
                 NSString *procName = [NSString stringWithUTF8String:procs[i].kp_proc.p_comm];
                 if ([procName containsString:@"freefire"] || [procName containsString:@"FreeFire"]) {
-                    // Tìm base address
-                    // TODO: Implement proper base address finding
                     LOG(@"Found FreeFire process: %@", procName);
-                    self.baseAddress = 0x100000000; // Giả định
+                    self.baseAddress = 0x100000000;
                     break;
                 }
             }
@@ -354,11 +343,8 @@ static inline Vector3 Vector3Normalize(Vector3 v) {
 - (void)enableAimbot:(BOOL)enable {
     self.aimbotEnabled = enable;
     LOG(@"🎯 Aimbot: %@", enable ? @"ENABLED" : @"DISABLED");
-    if (enable) {
-        [self startHackLoop];
-    } else {
-        [self stopHackLoop];
-    }
+    if (enable) [self startHackLoop];
+    else [self stopHackLoop];
 }
 
 - (void)enableESP:(BOOL)enable {
@@ -370,12 +356,9 @@ static inline Vector3 Vector3Normalize(Vector3 v) {
     self.flyHackEnabled = enable;
     LOG(@"🪄 Fly Hack: %@", enable ? @"ENABLED" : @"DISABLED");
     uintptr_t localPlayer = [self getLocalPlayer];
-    if (localPlayer) {
-        if (enable) {
-            // Lưu vị trí Z hiện tại để bay
-            float currentZ = [self readFloat:localPlayer + OFF_PLAYER_POS_Z];
-            [self writeFloat:localPlayer + OFF_PLAYER_POS_Z value:currentZ + 1000];
-        }
+    if (localPlayer && enable) {
+        float currentZ = [self readFloat:localPlayer + OFF_PLAYER_POS_Z];
+        [self writeFloat:localPlayer + OFF_PLAYER_POS_Z value:currentZ + 1000];
     }
 }
 
@@ -401,18 +384,13 @@ static inline Vector3 Vector3Normalize(Vector3 v) {
     LOG(@"⚡ Speed Hack: %@", enable ? @"ENABLED" : @"DISABLED");
     uintptr_t localPlayer = [self getLocalPlayer];
     if (localPlayer) {
-        if (enable) {
-            [self writeFloat:localPlayer + OFF_PLAYER_SPEED value:99.0f];
-        } else {
-            [self writeFloat:localPlayer + OFF_PLAYER_SPEED value:5.0f];
-        }
+        [self writeFloat:localPlayer + OFF_PLAYER_SPEED value:enable ? 99.0f : 5.0f];
     }
 }
 
 - (void)enableWallHack:(BOOL)enable {
     self.wallHackEnabled = enable;
     LOG(@"🛡️ Wall Hack: %@", enable ? @"ENABLED" : @"DISABLED");
-    // Thường dùng OpenGL hook hoặc thay đổi giá trị trong shader
 }
 
 - (void)enableRadar:(BOOL)enable {
@@ -423,7 +401,6 @@ static inline Vector3 Vector3Normalize(Vector3 v) {
 - (void)enableChams:(BOOL)enable {
     self.chamsEnabled = enable;
     LOG(@"🎨 Chams: %@", enable ? @"ENABLED" : @"DISABLED");
-    // Thường dùng OpenGL hook để đổi màu enemy
 }
 
 - (void)enableNoRecoil:(BOOL)enable {
@@ -431,11 +408,7 @@ static inline Vector3 Vector3Normalize(Vector3 v) {
     LOG(@"🔫 No Recoil: %@", enable ? @"ENABLED" : @"DISABLED");
     uintptr_t localPlayer = [self getLocalPlayer];
     if (localPlayer) {
-        if (enable) {
-            [self writeFloat:localPlayer + OFF_WEAPON_RECOIL value:0.0f];
-        } else {
-            [self writeFloat:localPlayer + OFF_WEAPON_RECOIL value:1.0f];
-        }
+        [self writeFloat:localPlayer + OFF_WEAPON_RECOIL value:enable ? 0.0f : 1.0f];
     }
 }
 
@@ -450,20 +423,18 @@ static inline Vector3 Vector3Normalize(Vector3 v) {
 
 - (void)startHackLoop {
     if (self.hackTimer) return;
-    self.hackTimer = [NSTimer scheduledTimerWithTimeInterval:0.016 // ~60fps
+    self.hackTimer = [NSTimer scheduledTimerWithTimeInterval:0.016
                                                       target:self
                                                     selector:@selector(hackLoop)
                                                     userInfo:nil
                                                      repeats:YES];
     [[NSRunLoop mainRunLoop] addTimer:self.hackTimer forMode:NSRunLoopCommonModes];
-    LOG(@"Hack loop started");
 }
 
 - (void)stopHackLoop {
     if (self.hackTimer) {
         [self.hackTimer invalidate];
         self.hackTimer = nil;
-        LOG(@"Hack loop stopped");
     }
 }
 
@@ -472,31 +443,19 @@ static inline Vector3 Vector3Normalize(Vector3 v) {
         uintptr_t localPlayer = [self getLocalPlayer];
         if (!localPlayer) return;
         
-        // God Mode
         if (self.godModeEnabled) {
             [self writeFloat:localPlayer + OFF_PLAYER_HEALTH value:9999.0f];
             [self writeFloat:localPlayer + OFF_PLAYER_MAX_HEALTH value:9999.0f];
             [self writeFloat:localPlayer + OFF_PLAYER_ARMOR value:9999.0f];
         }
-        
-        // Speed Hack
         if (self.speedHackEnabled) {
             [self writeFloat:localPlayer + OFF_PLAYER_SPEED value:99.0f];
         }
-        
-        // No Recoil
         if (self.noRecoilEnabled) {
             [self writeFloat:localPlayer + OFF_WEAPON_RECOIL value:0.0f];
         }
-        
-        // Aimbot - Tìm enemy gần nhất
         if (self.aimbotEnabled) {
             [self performAimbot];
-        }
-        
-        // Trigger Bot
-        if (self.triggerBotEnabled) {
-            [self performTriggerBot];
         }
     }
 }
@@ -511,7 +470,6 @@ static inline Vector3 Vector3Normalize(Vector3 v) {
     
     float closestDist = FLT_MAX;
     uintptr_t closestEnemy = 0;
-    Vector3 closestPos = {0, 0, 0};
     
     for (int i = 0; i < entityCount; i++) {
         uintptr_t entity = [self readInt:entityList + (i * 0x4)];
@@ -530,38 +488,7 @@ static inline Vector3 Vector3Normalize(Vector3 v) {
         if (dist < closestDist && dist < 100.0f) {
             closestDist = dist;
             closestEnemy = entity;
-            closestPos = enemyPos;
         }
-    }
-    
-    if (closestEnemy) {
-        // Tính góc aim
-        // TODO: Implement aim angle calculation
-        // Write vào camera angle
-    }
-}
-
-- (void)performTriggerBot {
-    uintptr_t localPlayer = [self getLocalPlayer];
-    if (!localPlayer) return;
-    
-    uintptr_t entityList = [self getEntityList];
-    int entityCount = [self getEntityCount];
-    
-    for (int i = 0; i < entityCount; i++) {
-        uintptr_t entity = [self readInt:entityList + (i * 0x4)];
-        if (!entity) continue;
-        
-        int isAlive = [self readInt:entity + OFF_PLAYER_IS_ALIVE];
-        if (!isAlive) continue;
-        
-        int team = [self readInt:entity + OFF_PLAYER_TEAM];
-        int localTeam = [self readInt:localPlayer + OFF_PLAYER_TEAM];
-        if (team == localTeam) continue;
-        
-        // Kiểm tra crosshair đang hướng vào enemy
-        // TODO: Implement crosshair check
-        // Nếu đúng thì tự động bắn
     }
 }
 
@@ -606,12 +533,7 @@ static inline Vector3 Vector3Normalize(Vector3 v) {
             @"https://www.youtube.com/watch?v=3JZ_D3ELwOQ",
             @"https://www.youtube.com/watch?v=fJ9rUzIMcZQ",
             @"https://www.youtube.com/watch?v=OPf0YbXqDm0",
-            @"https://www.youtube.com/watch?v=RgKAFK5djSk",
-            @"https://www.youtube.com/watch?v=YQHsXMglC9A",
-            @"https://www.youtube.com/watch?v=CevxZvSJLk8",
-            @"https://www.youtube.com/watch?v=JGwWNGJdvx8",
-            @"https://www.youtube.com/watch?v=kJQP7kiw5Fk",
-            @"https://www.youtube.com/watch?v=ktvTqknDobU"
+            @"https://www.youtube.com/watch?v=RgKAFK5djSk"
         ]];
     }
     return self;
@@ -622,24 +544,11 @@ static inline Vector3 Vector3Normalize(Vector3 v) {
         if (!self.musicWindow) {
             [self setupMusicWindow];
         }
-        
         NSString *urlString = nil;
-        if (songName && songName.length > 0) {
-            for (NSString *url in self.playlist) {
-                if ([url containsString:songName] || [songName containsString:url]) {
-                    urlString = url;
-                    break;
-                }
-            }
+        if (self.playlist.count > 0) {
+            urlString = self.playlist[self.currentIndex % self.playlist.count];
+            self.currentIndex++;
         }
-        
-        if (!urlString) {
-            if (self.playlist.count > 0) {
-                urlString = self.playlist[self.currentIndex % self.playlist.count];
-                self.currentIndex++;
-            }
-        }
-        
         if (urlString) {
             NSString *html = [NSString stringWithFormat:@"<!DOCTYPE html><html><head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no\"><style>body{margin:0;background:#000;display:flex;justify-content:center;align-items:center;height:100vh;}iframe{width:100%%;height:100%%;border:none;}</style></head><body><iframe src=\"%@?autoplay=1&playsinline=1\" allow=\"autoplay; encrypted-media\" allowfullscreen></iframe></body></html>", urlString];
             [self.webView loadHTMLString:html baseURL:nil];
@@ -649,13 +558,47 @@ static inline Vector3 Vector3Normalize(Vector3 v) {
 }
 
 - (void)setupMusicWindow {
-    CGRect screenBounds = [UIScreen mainScreen].bounds;
-    CGFloat width = 320;
-    CGFloat height = 180;
+    UIWindowScene *scene = nil;
+    NSArray *scenes = [UIApplication sharedApplication].connectedScenes.allObjects;
+    for (UIScene *s in scenes) {
+        if ([s isKindOfClass:[UIWindowScene class]]) {
+            UIWindowScene *ws = (UIWindowScene *)s;
+            if (ws.activationState == UISceneActivationStateForegroundActive) {
+                scene = ws;
+                break;
+            }
+        }
+    }
+    if (!scene && scenes.count > 0) {
+        for (UIScene *s in scenes) {
+            if ([s isKindOfClass:[UIWindowScene class]]) {
+                scene = (UIWindowScene *)s;
+                break;
+            }
+        }
+    }
+    
+    CGRect screenBounds;
+    if (scene) {
+        screenBounds = scene.coordinateSpace.bounds;
+    } else {
+        screenBounds = [UIScreen mainScreen].bounds;
+    }
+    CGFloat width = 320, height = 180;
     CGFloat x = screenBounds.size.width - width - 10;
     CGFloat y = screenBounds.size.height - height - 100;
     
-    self.musicWindow = [[UIWindow alloc] initWithFrame:CGRectMake(x, y, width, height)];
+    if (@available(iOS 26.0, *)) {
+        if (scene) {
+            self.musicWindow = [[UIWindow alloc] initWithWindowScene:scene];
+            self.musicWindow.frame = CGRectMake(x, y, width, height);
+        } else {
+            self.musicWindow = [[UIWindow alloc] initWithFrame:CGRectMake(x, y, width, height)];
+        }
+    } else {
+        self.musicWindow = [[UIWindow alloc] initWithFrame:CGRectMake(x, y, width, height)];
+    }
+    
     self.musicWindow.backgroundColor = [UIColor blackColor];
     self.musicWindow.windowLevel = UIWindowLevelAlert + 50;
     self.musicWindow.hidden = NO;
@@ -675,7 +618,6 @@ static inline Vector3 Vector3Normalize(Vector3 v) {
     self.webView.userInteractionEnabled = YES;
     [self.musicWindow addSubview:self.webView];
     
-    // Controls
     UIView *controlsView = [[UIView alloc] initWithFrame:CGRectMake(0, height - 40, width, 40)];
     controlsView.backgroundColor = [UIColor colorWithWhite:0.0 alpha:0.7];
     controlsView.userInteractionEnabled = YES;
@@ -713,20 +655,8 @@ static inline Vector3 Vector3Normalize(Vector3 v) {
     [closeBtn addTarget:self action:@selector(stop) forControlEvents:UIControlEventTouchUpInside];
     [controlsView addSubview:closeBtn];
     
-    UILabel *titleLabel = [[UILabel alloc] initWithFrame:CGRectMake(130, 5, width - 170, 30)];
-    titleLabel.text = @"🎵 YouTube Music";
-    titleLabel.textColor = [UIColor whiteColor];
-    titleLabel.font = [UIFont systemFontOfSize:12];
-    titleLabel.textAlignment = NSTextAlignmentCenter;
-    titleLabel.tag = 999;
-    [controlsView addSubview:titleLabel];
-    
     UIPanGestureRecognizer *pan = [[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(handlePan:)];
     [self.musicWindow addGestureRecognizer:pan];
-    
-    UITapGestureRecognizer *doubleTap = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(toggleFullscreen)];
-    doubleTap.numberOfTapsRequired = 2;
-    [self.musicWindow addGestureRecognizer:doubleTap];
 }
 
 - (void)handlePan:(UIPanGestureRecognizer *)gesture {
@@ -734,40 +664,15 @@ static inline Vector3 Vector3Normalize(Vector3 v) {
     CGRect frame = self.musicWindow.frame;
     frame.origin.x += translation.x;
     frame.origin.y += translation.y;
-    
     CGFloat screenWidth = [UIScreen mainScreen].bounds.size.width;
     CGFloat screenHeight = [UIScreen mainScreen].bounds.size.height;
     frame.origin.x = MAX(0, MIN(screenWidth - frame.size.width, frame.origin.x));
     frame.origin.y = MAX(0, MIN(screenHeight - frame.size.height, frame.origin.y));
-    
     self.musicWindow.frame = frame;
     [gesture setTranslation:CGPointZero inView:self.musicWindow.superview];
 }
 
-- (void)toggleFullscreen {
-    if (self.musicWindow) {
-        CGRect screenBounds = [UIScreen mainScreen].bounds;
-        if (self.musicWindow.frame.size.width < screenBounds.size.width / 2) {
-            [UIView animateWithDuration:0.3 animations:^{
-                self.musicWindow.frame = screenBounds;
-                self.musicWindow.layer.cornerRadius = 0;
-                self.webView.frame = self.musicWindow.bounds;
-            }];
-        } else {
-            CGFloat width = 320;
-            CGFloat height = 180;
-            CGFloat x = screenBounds.size.width - width - 10;
-            CGFloat y = screenBounds.size.height - height - 100;
-            [UIView animateWithDuration:0.3 animations:^{
-                self.musicWindow.frame = CGRectMake(x, y, width, height);
-                self.musicWindow.layer.cornerRadius = 12;
-                self.webView.frame = CGRectMake(0, 0, width, height);
-            }];
-        }
-    }
-}
-
-- (void)playNextSong {
+- (void)nextSong {
     if (self.playlist.count > 0) {
         NSString *url = self.playlist[self.currentIndex % self.playlist.count];
         self.currentIndex++;
@@ -775,17 +680,13 @@ static inline Vector3 Vector3Normalize(Vector3 v) {
     }
 }
 
-- (void)nextSong {
-    [self playNextSong];
-}
-
 - (void)prevSong {
     if (self.currentIndex > 1) {
         self.currentIndex -= 2;
-        [self playNextSong];
+        [self nextSong];
     } else {
         self.currentIndex = self.playlist.count - 1;
-        [self playNextSong];
+        [self nextSong];
     }
 }
 
@@ -799,11 +700,6 @@ static inline Vector3 Vector3Normalize(Vector3 v) {
     }
 }
 
-- (void)resume {
-    self.playing = YES;
-    [self.webView evaluateJavaScript:@"document.querySelector('video')?.play();" completionHandler:nil];
-}
-
 - (void)stop {
     self.playing = NO;
     [self.webView evaluateJavaScript:@"document.querySelector('video')?.pause();" completionHandler:nil];
@@ -814,20 +710,17 @@ static inline Vector3 Vector3Normalize(Vector3 v) {
     }
 }
 
-- (BOOL)isPlaying {
-    return self.playing && self.musicWindow != nil;
-}
-
 @end
 
 // ============================================================
-// FLUCK GESTURE RECOGNIZER - 3 NGÓN 2 LẦN
+// FLUCK GESTURE RECOGNIZER - 3 NGÓN 2 LẦN (FIX LỖI)
 // ============================================================
 
 @interface FluckTripleTapGestureRecognizer : UIGestureRecognizer
 @property (nonatomic, assign) NSInteger tapCount;
 @property (nonatomic, assign) NSInteger touchCount;
 @property (nonatomic, strong) NSTimer *resetTimer;
+// KHÔNG dùng numberOfTouchesRequired vì không có trong UIGestureRecognizer
 @end
 
 @implementation FluckTripleTapGestureRecognizer
@@ -837,7 +730,6 @@ static inline Vector3 Vector3Normalize(Vector3 v) {
     if (self) {
         self.tapCount = 0;
         self.touchCount = 0;
-        self.numberOfTouchesRequired = 3;
         self.delaysTouchesEnded = YES;
     }
     return self;
@@ -845,9 +737,9 @@ static inline Vector3 Vector3Normalize(Vector3 v) {
 
 - (void)touchesBegan:(NSSet<UITouch *> *)touches withEvent:(UIEvent *)event {
     [super touchesBegan:touches withEvent:event];
-    
     self.touchCount = touches.count;
     
+    // Kiểm tra số ngón chạm
     if (touches.count != 3) {
         [self reset];
         return;
@@ -914,7 +806,6 @@ static inline Vector3 Vector3Normalize(Vector3 v) {
 @property (nonatomic, strong) FluckTripleTapGestureRecognizer *tripleTapGesture;
 @property (nonatomic, assign) BOOL isHiddenByCamera;
 @property (nonatomic, strong) FluckButton *youtubeButton;
-@property (nonatomic, strong) NSMutableDictionary *hackStates;
 @property (nonatomic, strong) FreeFireHackManager *hackManager;
 @end
 
@@ -927,7 +818,6 @@ static inline Vector3 Vector3Normalize(Vector3 v) {
     self.isVisible = NO;
     self.isHiddenByCamera = NO;
     self.buttons = [NSMutableArray array];
-    self.hackStates = [NSMutableDictionary dictionary];
     self.hackManager = [FreeFireHackManager shared];
     [self setupMenu];
     [self setupFPSMonitor];
@@ -937,96 +827,49 @@ static inline Vector3 Vector3Normalize(Vector3 v) {
 }
 
 // ============================================================
-// DETECT CAMERA / SCREENSHOT / SCREEN RECORDING
+// DETECT CAMERA
 // ============================================================
 
 - (void)setupCameraDetection {
-    [[NSNotificationCenter defaultCenter] addObserver:self
-                                             selector:@selector(cameraDidStart:)
-                                                 name:@"AVCaptureSessionDidStartRunningNotification"
-                                               object:nil];
-    
-    [[NSNotificationCenter defaultCenter] addObserver:self
-                                             selector:@selector(cameraDidStop:)
-                                                 name:@"AVCaptureSessionDidStopRunningNotification"
-                                               object:nil];
-    
-    [[NSNotificationCenter defaultCenter] addObserver:self
-                                             selector:@selector(screenshotDetected:)
-                                                 name:UIApplicationUserDidTakeScreenshotNotification
-                                               object:nil];
-    
-    [[NSNotificationCenter defaultCenter] addObserver:self
-                                             selector:@selector(screenRecordingDidChange:)
-                                                 name:UIScreenCapturedDidChangeNotification
-                                               object:nil];
-    
-    [[NSNotificationCenter defaultCenter] addObserver:self
-                                             selector:@selector(appDidEnterBackground:)
-                                                 name:UIApplicationDidEnterBackgroundNotification
-                                               object:nil];
-    
-    [[NSNotificationCenter defaultCenter] addObserver:self
-                                             selector:@selector(appDidBecomeActive:)
-                                                 name:UIApplicationDidBecomeActiveNotification
-                                               object:nil];
-    
-    [self setupVolumeButtonDetection];
-}
-
-- (void)setupVolumeButtonDetection {
-    AVAudioSession *audioSession = [AVAudioSession sharedInstance];
-    [audioSession setActive:YES error:nil];
-    [audioSession addObserver:self
-                   forKeyPath:@"outputVolume"
-                      options:NSKeyValueObservingOptionNew
-                      context:nil];
-}
-
-- (void)observeValueForKeyPath:(NSString *)keyPath
-                      ofObject:(id)object
-                        change:(NSDictionary<NSKeyValueChangeKey,id> *)change
-                       context:(void *)context {
-    if ([keyPath isEqualToString:@"outputVolume"]) {
-        [self autoHideMenu];
-    }
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(cameraDidStart:) name:@"AVCaptureSessionDidStartRunningNotification" object:nil];
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(cameraDidStop:) name:@"AVCaptureSessionDidStopRunningNotification" object:nil];
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(screenshotDetected:) name:UIApplicationUserDidTakeScreenshotNotification object:nil];
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(screenRecordingDidChange:) name:UIScreenCapturedDidChangeNotification object:nil];
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(appDidEnterBackground:) name:UIApplicationDidEnterBackgroundNotification object:nil];
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(appDidBecomeActive:) name:UIApplicationDidBecomeActiveNotification object:nil];
 }
 
 - (void)cameraDidStart:(NSNotification *)notification {
-    LOG(@"📷 Camera started! Auto-hiding menu");
     [self autoHideMenu];
 }
-
 - (void)cameraDidStop:(NSNotification *)notification {
-    LOG(@"📷 Camera stopped! Restoring menu");
     [self autoShowMenu];
 }
-
 - (void)screenshotDetected:(NSNotification *)notification {
-    LOG(@"📸 Screenshot detected! Auto-hiding menu");
     [self autoHideMenu];
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 2.0 * NSEC_PER_SEC), dispatch_get_main_queue(), ^{
         [self autoShowMenu];
     });
 }
-
 - (void)screenRecordingDidChange:(NSNotification *)notification {
-    if ([UIScreen mainScreen].isCaptured) {
-        LOG(@"🎥 Screen recording started! Auto-hiding menu");
-        [self autoHideMenu];
+    if (@available(iOS 26.0, *)) {
+        if ([UIScreen mainScreen].isCaptured) {
+            [self autoHideMenu];
+        } else {
+            [self autoShowMenu];
+        }
     } else {
-        LOG(@"🎥 Screen recording stopped! Restoring menu");
-        [self autoShowMenu];
+        if ([UIScreen mainScreen].isCaptured) {
+            [self autoHideMenu];
+        } else {
+            [self autoShowMenu];
+        }
     }
 }
-
 - (void)appDidEnterBackground:(NSNotification *)notification {
-    LOG(@"📱 App entered background - auto-hiding menu");
     [self autoHideMenu];
 }
-
 - (void)appDidBecomeActive:(NSNotification *)notification {
-    LOG(@"📱 App became active - restoring menu");
     if (!self.isHiddenByCamera) {
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 0.5 * NSEC_PER_SEC), dispatch_get_main_queue(), ^{
             [self autoShowMenu];
@@ -1041,7 +884,6 @@ static inline Vector3 Vector3Normalize(Vector3 v) {
         self.toggleButton.hidden = YES;
     }
 }
-
 - (void)autoShowMenu {
     if (!self.isVisible && self.isHiddenByCamera) {
         self.isHiddenByCamera = NO;
@@ -1079,7 +921,6 @@ static inline Vector3 Vector3Normalize(Vector3 v) {
     self.isHiddenByCamera = NO;
     [self toggle];
 }
-
 - (void)handleLongPress:(UILongPressGestureRecognizer *)gesture {
     if (gesture.state == UIGestureRecognizerStateBegan) {
         LOG(@"🔵 Long press 2s - Toggle menu");
@@ -1087,13 +928,11 @@ static inline Vector3 Vector3Normalize(Vector3 v) {
         [self toggle];
     }
 }
-
 - (void)handleDoubleTap:(UITapGestureRecognizer *)gesture {
     LOG(@"🟢 Double tap - Toggle menu");
     self.isHiddenByCamera = NO;
     [self toggle];
 }
-
 - (BOOL)gestureRecognizer:(UIGestureRecognizer *)gestureRecognizer shouldRecognizeSimultaneouslyWithGestureRecognizer:(UIGestureRecognizer *)otherGestureRecognizer {
     return YES;
 }
@@ -1116,7 +955,6 @@ static inline Vector3 Vector3Normalize(Vector3 v) {
     [self.toggleButton addTarget:self action:@selector(toggleFromButton) forControlEvents:UIControlEventTouchUpInside];
     [self.view addSubview:self.toggleButton];
 }
-
 - (void)toggleFromButton {
     self.isHiddenByCamera = NO;
     [self toggle];
@@ -1153,9 +991,6 @@ static inline Vector3 Vector3Normalize(Vector3 v) {
     hackName = [hackName stringByReplacingOccurrencesOfString:@"🔫 " withString:@""];
     hackName = [hackName stringByReplacingOccurrencesOfString:@"🎮 " withString:@""];
     
-    self.hackStates[hackName] = @(sender.isActive);
-    
-    // Gọi hàm hack tương ứng
     if ([hackName isEqualToString:@"Aimbot"]) {
         [self.hackManager enableAimbot:sender.isActive];
     } else if ([hackName isEqualToString:@"ESP"]) {
@@ -1183,21 +1018,17 @@ static inline Vector3 Vector3Normalize(Vector3 v) {
         sender.statusLabel.text = @"●";
         sender.statusLabel.textColor = [UIColor colorWithRed:0.0 green:1.0 blue:0.0 alpha:1.0];
         [self showToast:[NSString stringWithFormat:@"✅ %@ ENABLED", hackName]];
-        LOG(@"✅ %@ ENABLED", hackName);
     } else {
         sender.backgroundColor = [UIColor colorWithWhite:0.2 alpha:1.0];
         sender.statusLabel.text = @"○";
         sender.statusLabel.textColor = [UIColor grayColor];
         [self showToast:[NSString stringWithFormat:@"❌ %@ DISABLED", hackName]];
-        LOG(@"❌ %@ DISABLED", hackName);
     }
 }
 
 - (void)showToast:(NSString *)message {
     dispatch_async(dispatch_get_main_queue(), ^{
-        UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"⚡ Fluck" 
-                                                                       message:message 
-                                                                preferredStyle:UIAlertControllerStyleAlert];
+        UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"⚡ Fluck" message:message preferredStyle:UIAlertControllerStyleAlert];
         [alert addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault handler:nil]];
         [self presentViewController:alert animated:YES completion:nil];
     });
@@ -1222,13 +1053,9 @@ static inline Vector3 Vector3Normalize(Vector3 v) {
     
     CAGradientLayer *gradient = [CAGradientLayer layer];
     gradient.frame = self.menuView.bounds;
-    gradient.colors = @[
-        (id)[UIColor colorWithWhite:0.05 alpha:0.95].CGColor,
-        (id)[UIColor colorWithWhite:0.1 alpha:0.95].CGColor
-    ];
+    gradient.colors = @[(id)[UIColor colorWithWhite:0.05 alpha:0.95].CGColor, (id)[UIColor colorWithWhite:0.1 alpha:0.95].CGColor];
     [self.menuView.layer insertSublayer:gradient atIndex:0];
     
-    // Title
     UILabel *title = [[UILabel alloc] initWithFrame:CGRectMake(0, 12, menuWidth, 30)];
     title.text = @"⚡ Fluck Pro v1.0";
     title.textColor = [UIColor colorWithRed:0.0 green:0.8 blue:1.0 alpha:1.0];
@@ -1236,7 +1063,6 @@ static inline Vector3 Vector3Normalize(Vector3 v) {
     title.font = [UIFont boldSystemFontOfSize:20];
     [self.menuView addSubview:title];
     
-    // Subtitle
     UILabel *subtitle = [[UILabel alloc] initWithFrame:CGRectMake(0, 38, menuWidth, 16)];
     subtitle.text = @"Free Fire Hack | 3-ngón 2-lần toggle";
     subtitle.textColor = [UIColor colorWithWhite:0.5 alpha:1.0];
@@ -1248,47 +1074,27 @@ static inline Vector3 Vector3Normalize(Vector3 v) {
     line.backgroundColor = [UIColor colorWithWhite:0.3 alpha:1.0];
     [self.menuView addSubview:line];
     
-    // Features
-    NSArray *features = @[
-        @"🎯 Aimbot",
-        @"👁️ ESP",
-        @"🪄 Fly Hack",
-        @"💉 God Mode",
-        @"⚡ Speed Hack",
-        @"🛡️ Wall Hack",
-        @"📡 Radar",
-        @"🎨 Chams",
-        @"🔫 No Recoil",
-        @"🎮 Trigger Bot",
-        @"🎵 YouTube Music"
-    ];
+    NSArray *features = @[@"🎯 Aimbot", @"👁️ ESP", @"🪄 Fly Hack", @"💉 God Mode", @"⚡ Speed Hack", @"🛡️ Wall Hack", @"📡 Radar", @"🎨 Chams", @"🔫 No Recoil", @"🎮 Trigger Bot", @"🎵 YouTube Music"];
     
-    CGFloat y = 68;
-    CGFloat spacing = 34;
+    CGFloat y = 68, spacing = 34;
     int cols = 2;
-    CGFloat btnWidth = (menuWidth - 50) / 2;
-    CGFloat btnHeight = 28;
-    CGFloat margin = 15;
+    CGFloat btnWidth = (menuWidth - 50) / 2, btnHeight = 28, margin = 15;
     
     for (int i = 0; i < features.count; i++) {
-        int row = i / cols;
-        int col = i % cols;
+        int row = i / cols, col = i % cols;
         CGFloat x = margin + col * (btnWidth + 10);
         CGFloat yPos = y + row * spacing;
-        
         FluckButton *btn = [[FluckButton alloc] initWithFrame:CGRectMake(x, yPos, btnWidth, btnHeight)];
         [btn setTitle:features[i] forState:UIControlStateNormal];
         btn.titleLabel.font = [UIFont systemFontOfSize:10];
         btn.titleLabel.adjustsFontSizeToFitWidth = YES;
         btn.tag = i;
-        
-        if (i == 10) { // YouTube Music
+        if (i == 10) {
             [btn addTarget:self action:@selector(toggleYouTubeMusic:) forControlEvents:UIControlEventTouchUpInside];
             self.youtubeButton = btn;
         } else {
             [btn addTarget:self action:@selector(handleHackToggle:) forControlEvents:UIControlEventTouchUpInside];
         }
-        
         [self.menuView addSubview:btn];
         [self.buttons addObject:btn];
     }
@@ -1322,10 +1128,6 @@ static inline Vector3 Vector3Normalize(Vector3 v) {
     [self.menuView addGestureRecognizer:pan];
 }
 
-// ============================================================
-// YOUTUBE MUSIC TOGGLE
-// ============================================================
-
 - (void)toggleYouTubeMusic:(FluckButton *)sender {
     sender.isActive = !sender.isActive;
     if (sender.isActive) {
@@ -1341,25 +1143,15 @@ static inline Vector3 Vector3Normalize(Vector3 v) {
         [self showToast:@"🎵 YouTube Music DISABLED"];
         [[YouTubeMusicPlayer shared] stop];
     }
-    LOG(@"🎵 YouTube Music: %@", sender.isActive ? @"ON" : @"OFF");
 }
-
-// ============================================================
-// MENU ANIMATION
-// ============================================================
 
 - (void)hideMenu {
     [self hideWithAnimation];
     self.toggleButton.hidden = NO;
-    [UIView animateWithDuration:0.3 animations:^{
-        self.toggleButton.alpha = 1.0;
-    }];
-    
+    [UIView animateWithDuration:0.3 animations:^{ self.toggleButton.alpha = 1.0; }];
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 5 * NSEC_PER_SEC), dispatch_get_main_queue(), ^{
         if (self.toggleButton && !self.toggleButton.hidden) {
-            [UIView animateWithDuration:0.3 animations:^{
-                self.toggleButton.alpha = 0.3;
-            }];
+            [UIView animateWithDuration:0.3 animations:^{ self.toggleButton.alpha = 0.3; }];
         }
     });
 }
@@ -1367,12 +1159,10 @@ static inline Vector3 Vector3Normalize(Vector3 v) {
 - (void)handlePan:(UIPanGestureRecognizer *)gesture {
     CGPoint translation = [gesture translationInView:self.view];
     CGPoint newCenter = CGPointMake(self.menuView.center.x + translation.x, self.menuView.center.y + translation.y);
-    
     CGFloat halfWidth = self.menuView.frame.size.width / 2;
     CGFloat halfHeight = self.menuView.frame.size.height / 2;
     newCenter.x = MAX(halfWidth, MIN(self.view.bounds.size.width - halfWidth, newCenter.x));
     newCenter.y = MAX(halfHeight, MIN(self.view.bounds.size.height - halfHeight, newCenter.y));
-    
     self.menuView.center = newCenter;
     [gesture setTranslation:CGPointZero inView:self.view];
 }
@@ -1381,10 +1171,8 @@ static inline Vector3 Vector3Normalize(Vector3 v) {
     self.isVisible = YES;
     self.view.hidden = NO;
     self.view.userInteractionEnabled = YES;
-    
     self.toggleButton.hidden = YES;
     self.toggleButton.alpha = 0;
-    
     self.menuView.transform = CGAffineTransformMakeScale(0.5, 0.5);
     self.menuView.alpha = 0;
     [UIView animateWithDuration:0.3 delay:0 usingSpringWithDamping:0.7 initialSpringVelocity:0.5 options:0 animations:^{
@@ -1438,7 +1226,6 @@ static inline Vector3 Vector3Normalize(Vector3 v) {
 - (void)dealloc {
     [self stopFPSMonitor];
     [[NSNotificationCenter defaultCenter] removeObserver:self];
-    [[AVAudioSession sharedInstance] removeObserver:self forKeyPath:@"outputVolume"];
     [[YouTubeMusicPlayer shared] stop];
     [self.hackManager stopHackLoop];
 }
@@ -1572,7 +1359,7 @@ static inline Vector3 Vector3Normalize(Vector3 v) {
 @end
 
 // ============================================================
-// CONSTRUCTOR
+// CONSTRUCTOR & EXPORT
 // ============================================================
 
 __attribute__((constructor))
@@ -1583,7 +1370,6 @@ static void fluck_constructor(void) {
     LOG(@"║   👆 3-ngón 2-lần toggle menu           ║");
     LOG(@"║   📷 Auto-hide khi chụp ảnh/quay video  ║");
     LOG(@"║   🎵 YouTube Music Player               ║");
-    LOG(@"║   🎯 ALL HACK FUNCTIONS ACTIVE          ║");
     LOG(@"═══════════════════════════════════════════════");
     
     dispatch_async(dispatch_get_main_queue(), ^{
@@ -1597,37 +1383,26 @@ static void fluck_destructor(void) {
     [[FluckManager shared] stop];
 }
 
-// ============================================================
-// EXPORT FUNCTIONS
-// ============================================================
-
 extern "C" {
     void start_fluck(void) {
         dispatch_async(dispatch_get_main_queue(), ^{
             [[FluckManager shared] start];
         });
     }
-    
     void stop_fluck(void) {
         dispatch_async(dispatch_get_main_queue(), ^{
             [[FluckManager shared] stop];
         });
     }
-    
     void toggle_fluck_menu(void) {
         dispatch_async(dispatch_get_main_queue(), ^{
             [[FluckManager shared] toggleMenu];
         });
     }
-    
     bool is_fluck_visible(void) {
         return [[FluckManager shared] isMenuVisible];
     }
 }
-
-// ============================================================
-// MAIN
-// ============================================================
 
 int main(int argc, char *argv[]) {
     @autoreleasepool {
