@@ -2,6 +2,7 @@
 // ModMenuViewController.h
 // ============================================================================
 
+// ModMenuViewController.h
 #import <UIKit/UIKit.h>
 
 @class _F1oatM3nuV;
@@ -58,6 +59,108 @@
 @property (nonatomic, strong) UISwitch *secondSwitch;
 @property (nonatomic, strong) UIButton *submitButton;
 
+// Methods
+- (void)setupBackend;
+- (void)setupUI;
+- (void)initializeMenu;
+- (void)viewDidLoad;
+- (void)setupDisplayLink;
+- (void)startFPSTimer;
+- (void)updateFrame;
+- (void)dealloc;
+
+- (void)createAllFeatureButtons;
+- (void)removeAllFeatureButtons;
+- (void)updateUIButtonVisibility;
+- (void)updateFeatureButtonTheme:(UIButton *)button;
+- (void)updateAllFeatureButtonThemes;
+- (void)createFloatingMenu;
+- (void)showMenu;
+- (void)hideMenu;
+- (void)toggleMenu;
+
+// State management
+- (void)saveUIState;
+- (void)loadUIState;
+- (void)saveMenuState;
+- (void)loadMenuState;
+- (id)uiStateJSONPath;
+- (id)readUIStateJSON;
+- (void)writeUIStateJSON:(id)data;
+- (id)serializeColor:(UIColor *)color;
+- (id)deserializeColor:(id)colorData fallback:(UIColor *)fallback;
+- (UIColor *)loadSavedThemeColor;
+
+// Feature actions
+- (void)ghostSwitchChanged:(UISwitch *)sender;
+- (void)teleVIPSwitchChanged:(UISwitch *)sender;
+- (void)undergroundSwitchChanged:(UISwitch *)sender;
+- (void)aiTelekillSwitchChanged:(UISwitch *)sender;
+- (void)ninjaRunSwitchChanged:(UISwitch *)sender;
+- (void)flyAlturaSwitchChanged:(UISwitch *)sender;
+- (void)flyNormalSwitchChanged:(UISwitch *)sender;
+- (void)flyv2SwitchChanged:(UISwitch *)sender;
+- (void)savePosSwitchChanged:(UISwitch *)sender;
+- (void)goTeleportStateSwitchChanged:(UISwitch *)sender;
+- (void)stopMoveSwitchChanged:(UISwitch *)sender;
+- (void)horizontalSpeedSwitchChanged:(UISwitch *)sender;
+- (void)clearAntiuSwitchChanged:(UISwitch *)sender;
+- (void)magnetKillSwitchChanged:(UISwitch *)sender;
+- (void)markTeleportSwitchChanged:(UISwitch *)sender;
+
+// Toggle visibility
+- (void)toggleShowGhostUI:(UISwitch *)sender;
+- (void)toggleShowTeleVIPUI:(UISwitch *)sender;
+- (void)toggleShowUndergroundUI:(UISwitch *)sender;
+- (void)toggleShowAITelekillUI:(UISwitch *)sender;
+- (void)toggleShowNinjaRunUI:(UISwitch *)sender;
+- (void)toggleShowFlyAlturaUI:(UISwitch *)sender;
+- (void)toggleUIFlyNormal:(UISwitch *)sender;
+- (void)toggleShowFlyv2UI:(UISwitch *)sender;
+- (void)toggleShowSavePosUI:(UISwitch *)sender;
+- (void)toggleShowGoTeleportStateUI:(UISwitch *)sender;
+- (void)toggleShowStopMoveUI:(UISwitch *)sender;
+- (void)toggleShowHorizontalSpeedUI:(UISwitch *)sender;
+- (void)toggleShowClearAntiuUI:(UISwitch *)sender;
+- (void)toggleShowMagnetKillUI:(UISwitch *)sender;
+- (void)toggleShowMarkTeleportUI:(UISwitch *)sender;
+
+// Protection
+- (void)protectAllFeatureButtons;
+- (void)unprotectAllFeatureButtons;
+- (void)screenCaptureStatusChanged:(NSNotification *)notification;
+- (void)toggleStreamMode:(UISwitch *)sender;
+
+// Gestures
+- (void)addMasterToggleGesture;
+- (void)toggleMasterVisibility:(UITapGestureRecognizer *)gesture;
+- (void)handleFeatureDrag:(UIPanGestureRecognizer *)gesture;
+
+// Button helpers
+- (id)createFeatureButton:(NSString *)title withTag:(NSInteger)tag;
+- (id)createFeatureSwitchContainer;
+- (CGPoint)loadButtonPosition:(NSInteger)tag defaultX:(CGFloat)defaultX defaultY:(CGFloat)defaultY;
+- (void)saveButtonPosition:(UIButton *)button;
+- (void)setAllButtonsVisible:(BOOL)visible;
+
+// Theme
+- (UIColor *)accentColor;
+- (UIColor *)textColor;
+- (UIColor *)glowColor;
+- (UIColor *)pillColor;
+- (UIColor *)checkboxOffColor;
+
+// Settings
+- (NSString *)settingsFilePath;
+- (void)loadResolutionAndLineOriginFromSettingsFile;
+
+// Menu building
+- (NSArray *)buildMenuTabs;
+
+// Class methods
++ (void)toggleMenuFromFloatingButton;
+
+@end
 // Methods
 - (void)setupBackend;
 - (void)setupUI;
