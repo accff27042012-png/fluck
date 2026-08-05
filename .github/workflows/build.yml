@@ -26,9 +26,15 @@ jobs:
         echo "THEOS=$HOME/theos" >> $GITHUB_ENV
         echo "$HOME/theos/bin" >> $GITHUB_PATH
     
+    - name: Install GNU Make
+      run: |
+        brew install make
+        echo "PATH=$(brew --prefix make)/libexec/gnubin:$PATH" >> $GITHUB_ENV
+    
     - name: Build dylib
       run: |
         export THEOS=$HOME/theos
+        export SDKROOT=$(xcrun --sdk iphoneos --show-sdk-path)
         make
     
     - name: Upload dylib
