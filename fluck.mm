@@ -10,10 +10,6 @@
 #import <mach/vm_map.h>
 #import <sys/sysctl.h>
 
-// ============================================================
-// MACROS
-// ============================================================
-
 #define LOG(msg, ...) NSLog(@"🔰 " msg, ##__VA_ARGS__)
 
 // ============================================================
@@ -149,33 +145,6 @@ static inline float Vector3Distance(Vector3 a, Vector3 b) {
 }
 
 // ============================================================
-// HELPER: GET KEY WINDOW (FIX DEPRECATED)
-// ============================================================
-
-static UIWindow* GetKeyWindow(void) {
-    UIWindowScene *scene = nil;
-    NSArray *scenes = [UIApplication sharedApplication].connectedScenes.allObjects;
-    for (UIScene *s in scenes) {
-        if ([s isKindOfClass:[UIWindowScene class]]) {
-            UIWindowScene *ws = (UIWindowScene *)s;
-            if (ws.activationState == UISceneActivationStateForegroundActive) {
-                scene = ws;
-                break;
-            }
-        }
-    }
-    if (!scene && scenes.count > 0) {
-        for (UIScene *s in scenes) {
-            if ([s isKindOfClass:[UIWindowScene class]]) {
-                scene = (UIWindowScene *)s;
-                break;
-            }
-        }
-    }
-    return scene ? scene.windows.firstObject : nil;
-}
-
-// ============================================================
 // FREE FIRE HACK MANAGER
 // ============================================================
 
@@ -200,6 +169,7 @@ static UIWindow* GetKeyWindow(void) {
 - (void)enableChams:(BOOL)enable;
 - (void)enableNoRecoil:(BOOL)enable;
 - (void)enableTriggerBot:(BOOL)enable;
+- (void)stopHackLoop;
 
 @property (nonatomic, assign) BOOL aimbotEnabled;
 @property (nonatomic, assign) BOOL espEnabled;
@@ -417,10 +387,6 @@ static UIWindow* GetKeyWindow(void) {
     LOG(@"🎮 Trigger Bot: %@", enable ? @"ENABLED" : @"DISABLED");
 }
 
-// ============================================================
-// HACK LOOP
-// ============================================================
-
 - (void)startHackLoop {
     if (self.hackTimer) return;
     self.hackTimer = [NSTimer scheduledTimerWithTimeInterval:0.016
@@ -469,25 +435,18 @@ static UIWindow* GetKeyWindow(void) {
     int entityCount = [self getEntityCount];
     
     float closestDist = FLT_MAX;
-    uintptr_t closestEnemy = 0;
-    
     for (int i = 0; i < entityCount; i++) {
         uintptr_t entity = [self readInt:entityList + (i * 0x4)];
         if (!entity) continue;
-        
         int isAlive = [self readInt:entity + OFF_PLAYER_IS_ALIVE];
         if (!isAlive) continue;
-        
         int team = [self readInt:entity + OFF_PLAYER_TEAM];
         int localTeam = [self readInt:localPlayer + OFF_PLAYER_TEAM];
         if (team == localTeam) continue;
-        
         Vector3 enemyPos = [self readVector3:entity];
         float dist = Vector3Distance(localPos, enemyPos);
-        
         if (dist < closestDist && dist < 100.0f) {
             closestDist = dist;
-            closestEnemy = entity;
         }
     }
 }
@@ -495,7 +454,7 @@ static UIWindow* GetKeyWindow(void) {
 @end
 
 // ============================================================
-// YOUTUBE MUSIC PLAYER
+// YOUTUBE MUSIC PLAYER (FIX THIẾU HÀM)
 // ============================================================
 
 @interface YouTubeMusicPlayer : NSObject
@@ -580,7 +539,7 @@ static UIWindow* GetKeyWindow(void) {
     
     CGRect screenBounds;
     if (scene) {
-        screenBounds = scene.coordinateSpace.bounds;
+        screenBounds = scene.screen.bounds;
     } else {
         screenBounds = [UIScreen mainScreen].bounds;
     }
@@ -700,6 +659,19 @@ static UIWindow* GetKeyWindow(void) {
     }
 }
 
+// ============================================================
+// THÊM HÀM resume VÀ isPlaying
+// ============================================================
+
+- (void)resume {
+    self.playing = YES;
+    [self.webView evaluateJavaScript:@"document.querySelector('video')?.play();" completionHandler:nil];
+}
+
+- (BOOL)isPlaying {
+    return self.playing && self.musicWindow != nil;
+}
+
 - (void)stop {
     self.playing = NO;
     [self.webView evaluateJavaScript:@"document.querySelector('video')?.pause();" completionHandler:nil];
@@ -713,14 +685,13 @@ static UIWindow* GetKeyWindow(void) {
 @end
 
 // ============================================================
-// FLUCK GESTURE RECOGNIZER - 3 NGÓN 2 LẦN (FIX LỖI)
+// FLUCK GESTURE RECOGNIZER
 // ============================================================
 
 @interface FluckTripleTapGestureRecognizer : UIGestureRecognizer
 @property (nonatomic, assign) NSInteger tapCount;
 @property (nonatomic, assign) NSInteger touchCount;
 @property (nonatomic, strong) NSTimer *resetTimer;
-// KHÔNG dùng numberOfTouchesRequired vì không có trong UIGestureRecognizer
 @end
 
 @implementation FluckTripleTapGestureRecognizer
@@ -739,7 +710,6 @@ static UIWindow* GetKeyWindow(void) {
     [super touchesBegan:touches withEvent:event];
     self.touchCount = touches.count;
     
-    // Kiểm tra số ngón chạm
     if (touches.count != 3) {
         [self reset];
         return;
@@ -826,10 +796,6 @@ static UIWindow* GetKeyWindow(void) {
     [self setupCameraDetection];
 }
 
-// ============================================================
-// DETECT CAMERA
-// ============================================================
-
 - (void)setupCameraDetection {
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(cameraDidStart:) name:@"AVCaptureSessionDidStartRunningNotification" object:nil];
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(cameraDidStop:) name:@"AVCaptureSessionDidStopRunningNotification" object:nil];
@@ -839,12 +805,8 @@ static UIWindow* GetKeyWindow(void) {
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(appDidBecomeActive:) name:UIApplicationDidBecomeActiveNotification object:nil];
 }
 
-- (void)cameraDidStart:(NSNotification *)notification {
-    [self autoHideMenu];
-}
-- (void)cameraDidStop:(NSNotification *)notification {
-    [self autoShowMenu];
-}
+- (void)cameraDidStart:(NSNotification *)notification { [self autoHideMenu]; }
+- (void)cameraDidStop:(NSNotification *)notification { [self autoShowMenu]; }
 - (void)screenshotDetected:(NSNotification *)notification {
     [self autoHideMenu];
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 2.0 * NSEC_PER_SEC), dispatch_get_main_queue(), ^{
@@ -852,23 +814,13 @@ static UIWindow* GetKeyWindow(void) {
     });
 }
 - (void)screenRecordingDidChange:(NSNotification *)notification {
-    if (@available(iOS 26.0, *)) {
-        if ([UIScreen mainScreen].isCaptured) {
-            [self autoHideMenu];
-        } else {
-            [self autoShowMenu];
-        }
+    if ([UIScreen mainScreen].isCaptured) {
+        [self autoHideMenu];
     } else {
-        if ([UIScreen mainScreen].isCaptured) {
-            [self autoHideMenu];
-        } else {
-            [self autoShowMenu];
-        }
+        [self autoShowMenu];
     }
 }
-- (void)appDidEnterBackground:(NSNotification *)notification {
-    [self autoHideMenu];
-}
+- (void)appDidEnterBackground:(NSNotification *)notification { [self autoHideMenu]; }
 - (void)appDidBecomeActive:(NSNotification *)notification {
     if (!self.isHiddenByCamera) {
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 0.5 * NSEC_PER_SEC), dispatch_get_main_queue(), ^{
@@ -891,55 +843,41 @@ static UIWindow* GetKeyWindow(void) {
     }
 }
 
-// ============================================================
-// GESTURE RECOGNIZERS
-// ============================================================
-
 - (void)setupGestureRecognizers {
     self.tripleTapGesture = [[FluckTripleTapGestureRecognizer alloc] initWithTarget:self action:@selector(handleTripleTap:)];
     self.tripleTapGesture.delegate = self;
     [self.view addGestureRecognizer:self.tripleTapGesture];
-    LOG(@"✅ 3-ngón 2-lần gesture setup");
     
     UILongPressGestureRecognizer *longPress = [[UILongPressGestureRecognizer alloc] initWithTarget:self action:@selector(handleLongPress:)];
     longPress.minimumPressDuration = 2.0;
     longPress.numberOfTouchesRequired = 1;
     longPress.delegate = self;
     [self.view addGestureRecognizer:longPress];
-    LOG(@"✅ Long press 2s gesture setup");
     
     UITapGestureRecognizer *doubleTap = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(handleDoubleTap:)];
     doubleTap.numberOfTapsRequired = 2;
     doubleTap.numberOfTouchesRequired = 1;
     doubleTap.delegate = self;
     [self.view addGestureRecognizer:doubleTap];
-    LOG(@"✅ Double tap gesture setup");
 }
 
 - (void)handleTripleTap:(FluckTripleTapGestureRecognizer *)gesture {
-    LOG(@"🔴🔴 3 ngón chạm 2 lần! Toggle menu");
     self.isHiddenByCamera = NO;
     [self toggle];
 }
 - (void)handleLongPress:(UILongPressGestureRecognizer *)gesture {
     if (gesture.state == UIGestureRecognizerStateBegan) {
-        LOG(@"🔵 Long press 2s - Toggle menu");
         self.isHiddenByCamera = NO;
         [self toggle];
     }
 }
 - (void)handleDoubleTap:(UITapGestureRecognizer *)gesture {
-    LOG(@"🟢 Double tap - Toggle menu");
     self.isHiddenByCamera = NO;
     [self toggle];
 }
 - (BOOL)gestureRecognizer:(UIGestureRecognizer *)gestureRecognizer shouldRecognizeSimultaneouslyWithGestureRecognizer:(UIGestureRecognizer *)otherGestureRecognizer {
     return YES;
 }
-
-// ============================================================
-// TOGGLE BUTTON
-// ============================================================
 
 - (void)setupToggleButton {
     self.toggleButton = [UIButton buttonWithType:UIButtonTypeSystem];
@@ -960,10 +898,6 @@ static UIWindow* GetKeyWindow(void) {
     [self toggle];
 }
 
-// ============================================================
-// FPS MONITOR
-// ============================================================
-
 - (void)setupFPSMonitor {
     self.fpsLabel = [[UILabel alloc] initWithFrame:CGRectMake(10, 10, 80, 18)];
     self.fpsLabel.textColor = [UIColor colorWithRed:0.0 green:1.0 blue:0.0 alpha:1.0];
@@ -971,10 +905,6 @@ static UIWindow* GetKeyWindow(void) {
     self.fpsLabel.text = @"FPS: 0";
     [self.menuView addSubview:self.fpsLabel];
 }
-
-// ============================================================
-// HACK HANDLER
-// ============================================================
 
 - (void)handleHackToggle:(FluckButton *)sender {
     sender.isActive = !sender.isActive;
@@ -1033,10 +963,6 @@ static UIWindow* GetKeyWindow(void) {
         [self presentViewController:alert animated:YES completion:nil];
     });
 }
-
-// ============================================================
-// MENU UI
-// ============================================================
 
 - (void)setupMenu {
     CGFloat menuWidth = 280;
@@ -1359,7 +1285,7 @@ static UIWindow* GetKeyWindow(void) {
 @end
 
 // ============================================================
-// CONSTRUCTOR & EXPORT
+// CONSTRUCTOR - KHÔNG DÙNG extern "C" LẶP
 // ============================================================
 
 __attribute__((constructor))
@@ -1383,26 +1309,35 @@ static void fluck_destructor(void) {
     [[FluckManager shared] stop];
 }
 
-extern "C" {
-    void start_fluck(void) {
-        dispatch_async(dispatch_get_main_queue(), ^{
-            [[FluckManager shared] start];
-        });
-    }
-    void stop_fluck(void) {
-        dispatch_async(dispatch_get_main_queue(), ^{
-            [[FluckManager shared] stop];
-        });
-    }
-    void toggle_fluck_menu(void) {
-        dispatch_async(dispatch_get_main_queue(), ^{
-            [[FluckManager shared] toggleMenu];
-        });
-    }
-    bool is_fluck_visible(void) {
-        return [[FluckManager shared] isMenuVisible];
-    }
+// ============================================================
+// EXPORT FUNCTIONS (CHỈ 1 LẦN DUY NHẤT)
+// ============================================================
+
+void start_fluck(void) {
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [[FluckManager shared] start];
+    });
 }
+
+void stop_fluck(void) {
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [[FluckManager shared] stop];
+    });
+}
+
+void toggle_fluck_menu(void) {
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [[FluckManager shared] toggleMenu];
+    });
+}
+
+bool is_fluck_visible(void) {
+    return [[FluckManager shared] isMenuVisible];
+}
+
+// ============================================================
+// MAIN
+// ============================================================
 
 int main(int argc, char *argv[]) {
     @autoreleasepool {
