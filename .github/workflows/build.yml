@@ -19,15 +19,24 @@ jobs:
           echo "THEOS=$HOME/theos" >> $GITHUB_ENV
           echo "$HOME/theos/bin" >> $GITHUB_PATH
 
-      - name: Install SDK
+      - name: Setup iOS SDK
         run: |
+          # Lấy SDK path từ Xcode
+          SDK_PATH=$(xcrun --sdk iphoneos --show-sdk-path)
+          SDK_VERSION=$(echo $SDK_PATH | grep -oE '[0-9]+\.[0-9]+' | head -1)
+          
+          echo "📱 iOS SDK: $SDK_PATH"
+          echo "📱 SDK Version: $SDK_VERSION"
+          
+          # Tạo symlink
           mkdir -p $HOME/theos/sdks
-          curl -L https://github.com/xybp888/iOS-SDKs/raw/master/iPhoneOS15.2.sdk.zip -o sdk.zip
-          unzip sdk.zip -d $HOME/theos/sdks/
+          ln -sf "$SDK_PATH" $HOME/theos/sdks/iPhoneOS${SDK_VERSION}.sdk
+          ln -sf "$SDK_PATH" $HOME/theos/sdks/iPhoneOS.sdk
 
       - name: Build tweak
         run: |
           export THEOS=$HOME/theos
+          export SDK_VERSION=$(xcrun --sdk iphoneos --show-sdk-version)
           make clean
           make package
 
