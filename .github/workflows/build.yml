@@ -3,8 +3,6 @@ name: Build iOS Dylib
 on:
   push:
     branches: [ main, master ]
-  pull_request:
-    branches: [ main, master ]
   workflow_dispatch:
 
 jobs:
@@ -15,42 +13,38 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: List files (debug)
-        run: |
-          echo "Current directory:"
-          pwd
-          echo "All files:"
-          ls -la
-          echo "Searching for .mm files:"
-          find . -name "*.mm"
-
       - name: Compile ffhack
         run: |
-          # Tìm file ffhack.mm
-          MM_FILE=$(find . -name "ffhack.mm" | head -1)
-          
-          if [ -z "$MM_FILE" ]; then
-            echo "Error: ffhack.mm not found!"
-            echo "Available .mm files:"
-            find . -name "*.mm"
-            exit 1
-          fi
-          
-          echo "Found file: $MM_FILE"
-          
-          # Biên dịch
           clang++ -dynamiclib -arch arm64 \
             -isysroot $(xcrun --sdk iphoneos --show-sdk-path) \
             -framework Foundation \
             -framework UIKit \
             -framework CoreGraphics \
             -framework QuartzCore \
-            -O2 \
+            -framework AVFoundation \
+            -framework CoreLocation \
+            -framework MapKit \
+            -framework WebKit \
+            -framework SceneKit \
+            -framework SpriteKit \
+            -framework Metal \
+            -framework CoreImage \
+            -framework Security \
+            -framework SystemConfiguration \
+            -Oz \
             -o libffhack.dylib \
-            "$MM_FILE"
-          
-          echo "Build successful! Output: libffhack.dylib"
-          ls -la libffhack.dylib
+            ffhack.mm \
+            -lz \
+            -lc++ \
+            -ObjC
+
+      - name: Show file info
+        run: |
+          echo "📦 File size:"
+          ls -lh libffhack.dylib
+          echo ""
+          echo "🔍 File info:"
+          file libffhack.dylib
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
