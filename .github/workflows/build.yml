@@ -18,7 +18,7 @@ jobs:
     - name: Setup Xcode
       uses: maxim-lobanov/setup-xcode@v1
       with:
-        xcode-version: '16.0.0'  # Sử dụng phiên bản Xcode mới nhất
+        xcode-version: '16.0.0'
     
     - name: Install Theos
       run: |
@@ -74,7 +74,6 @@ EOF
     
     - name: Copy source code
       run: |
-        # Tạo file Tweak.xm từ source code
         cat > fluck/Tweak.xm << 'EOF'
 #import <UIKit/UIKit.h>
 #import <Foundation/Foundation.h>
@@ -83,16 +82,11 @@ EOF
 #import <QuartzCore/QuartzCore.h>
 #import <objc/runtime.h>
 
-// ============================================
-// MARK: - UTILITY FUNCTIONS
-// ============================================
-
 static void* _baseAddress = NULL;
 static BOOL _isInjected = NO;
 
 void* GetBaseAddress() {
     if (_baseAddress) return _baseAddress;
-    
     uint32_t count = _dyld_image_count();
     for (uint32_t i = 0; i < count; i++) {
         const char *name = _dyld_get_image_name(i);
@@ -104,39 +98,24 @@ void* GetBaseAddress() {
     return NULL;
 }
 
-BOOL IsValidPointer(void *ptr) {
-    if (!ptr) return NO;
-    if ((uintptr_t)ptr < 0x1000) return NO;
-    if ((uintptr_t)ptr > 0x7fffffff0000) return NO;
-    return YES;
-}
-
-// ============================================
-// MARK: - ESP MANAGER
-// ============================================
-
 @interface FluckESP : NSObject
 @property (nonatomic, assign) BOOL enabled;
 @property (nonatomic, assign) NSInteger style;
 @property (nonatomic, assign) BOOL showHealth;
 @property (nonatomic, assign) BOOL showDistance;
-@property (nonatomic, assign) BOOL showName;
 + (instancetype)shared;
 - (void)update;
 @end
 
 @implementation FluckESP {
     UIView *_overlay;
-    UIColor *_enemyColor;
 }
-
 + (instancetype)shared {
     static FluckESP *instance = nil;
     static dispatch_once_t token;
     dispatch_once(&token, ^{ instance = [[self alloc] init]; });
     return instance;
 }
-
 - (instancetype)init {
     self = [super init];
     if (self) {
@@ -144,9 +123,6 @@ BOOL IsValidPointer(void *ptr) {
         _style = 0;
         _showHealth = YES;
         _showDistance = YES;
-        _showName = YES;
-        _enemyColor = [UIColor colorWithRed:1 green:0 blue:0 alpha:1];
-        
         dispatch_async(dispatch_get_main_queue(), ^{
             UIWindow *keyWindow = [UIApplication sharedApplication].keyWindow;
             if (keyWindow) {
@@ -159,66 +135,44 @@ BOOL IsValidPointer(void *ptr) {
     }
     return self;
 }
-
 - (void)update {
     if (!_enabled || !_overlay) return;
-    
     dispatch_async(dispatch_get_main_queue(), ^{
         for (UIView *view in self->_overlay.subviews) {
             [view removeFromSuperview];
         }
     });
-    
-    // Get all players (placeholder)
-    // Real implementation needs proper offsets
-    return;
 }
-
 @end
-
-// ============================================
-// MARK: - AIMBOT MANAGER
-// ============================================
 
 @interface FluckAimbot : NSObject
 @property (nonatomic, assign) BOOL enabled;
 @property (nonatomic, assign) BOOL silentAim;
 @property (nonatomic, assign) BOOL autoFire;
-@property (nonatomic, assign) float fovRadius;
 + (instancetype)shared;
 - (void)update;
 @end
 
 @implementation FluckAimbot
-
 + (instancetype)shared {
     static FluckAimbot *instance = nil;
     static dispatch_once_t token;
     dispatch_once(&token, ^{ instance = [[self alloc] init]; });
     return instance;
 }
-
 - (instancetype)init {
     self = [super init];
     if (self) {
         _enabled = NO;
         _silentAim = NO;
         _autoFire = NO;
-        _fovRadius = 30;
     }
     return self;
 }
-
 - (void)update {
     if (!_enabled) return;
-    // Real implementation needs proper offsets
 }
-
 @end
-
-// ============================================
-// MARK: - FLOATING MENU
-// ============================================
 
 @interface FluckMenu : UIView
 + (instancetype)shared;
@@ -227,7 +181,6 @@ BOOL IsValidPointer(void *ptr) {
 - (void)toggle;
 - (void)setupUI;
 - (void)saveSettings;
-- (void)loadSettings;
 @end
 
 @implementation FluckMenu {
@@ -249,7 +202,6 @@ BOOL IsValidPointer(void *ptr) {
     if (self) {
         _settings = [NSMutableDictionary dictionary];
         _isMenuOpen = NO;
-        [self loadSettings];
         dispatch_async(dispatch_get_main_queue(), ^{
             [self setupUI];
         });
@@ -282,7 +234,6 @@ BOOL IsValidPointer(void *ptr) {
     _menuView.hidden = YES;
     [self addSubview:_menuView];
     
-    // Title
     UILabel *title = [[UILabel alloc] initWithFrame:CGRectMake(0, 10, menuWidth, 28)];
     title.text = @"FLUCK MOD";
     title.textColor = [UIColor colorWithRed:0.2 green:0.6 blue:1 alpha:1];
@@ -290,7 +241,6 @@ BOOL IsValidPointer(void *ptr) {
     title.textAlignment = NSTextAlignmentCenter;
     [_menuView addSubview:title];
     
-    // Close button
     UIButton *closeBtn = [UIButton buttonWithType:UIButtonTypeSystem];
     closeBtn.frame = CGRectMake(menuWidth - 44, 10, 30, 30);
     [closeBtn setTitle:@"✕" forState:UIControlStateNormal];
@@ -298,17 +248,13 @@ BOOL IsValidPointer(void *ptr) {
     [closeBtn addTarget:self action:@selector(hide) forControlEvents:UIControlEventTouchUpInside];
     [_menuView addSubview:closeBtn];
     
-    // ESP Section
     [self addSwitch:@"ESP" y:50 key:@"esp_enabled"];
     [self addSegmented:@[@"Box", @"Lines", @"Skeleton"] y:86 key:@"esp_style"];
     [self addSwitch:@"Health" y:124 key:@"esp_health"];
     [self addSwitch:@"Distance" y:162 key:@"esp_distance"];
-    [self addSwitch:@"Name" y:200 key:@"esp_name"];
-    
-    // Aimbot Section
-    [self addSwitch:@"Aimbot" y:250 key:@"aim_enabled"];
-    [self addSwitch:@"Silent Aim" y:288 key:@"aim_silent"];
-    [self addSwitch:@"Auto Fire" y:326 key:@"aim_autofire"];
+    [self addSwitch:@"Aimbot" y:210 key:@"aim_enabled"];
+    [self addSwitch:@"Silent Aim" y:248 key:@"aim_silent"];
+    [self addSwitch:@"Auto Fire" y:286 key:@"aim_autofire"];
 }
 
 - (void)addSwitch:(NSString *)title y:(CGFloat)y key:(NSString *)key {
@@ -318,13 +264,11 @@ BOOL IsValidPointer(void *ptr) {
     [sw addTarget:self action:@selector(switchChanged:) forControlEvents:UIControlEventValueChanged];
     
     UIView *row = [[UIView alloc] initWithFrame:CGRectMake(12, y, _menuView.bounds.size.width - 24, 34)];
-    
     UILabel *label = [[UILabel alloc] initWithFrame:CGRectMake(0, 5, 140, 24)];
     label.text = title;
     label.textColor = [UIColor colorWithWhite:0.9 alpha:1];
     label.font = [UIFont systemFontOfSize:14];
     [row addSubview:label];
-    
     sw.frame = CGRectMake(180, 0, 80, 34);
     [row addSubview:sw];
     [_menuView addSubview:row];
@@ -347,7 +291,6 @@ BOOL IsValidPointer(void *ptr) {
     if ([key isEqualToString:@"esp_style"]) return 1001;
     if ([key isEqualToString:@"esp_health"]) return 1002;
     if ([key isEqualToString:@"esp_distance"]) return 1003;
-    if ([key isEqualToString:@"esp_name"]) return 1004;
     if ([key isEqualToString:@"aim_enabled"]) return 2000;
     if ([key isEqualToString:@"aim_silent"]) return 2001;
     if ([key isEqualToString:@"aim_autofire"]) return 2002;
@@ -357,45 +300,22 @@ BOOL IsValidPointer(void *ptr) {
 - (void)switchChanged:(UISwitch *)sender {
     NSInteger tag = sender.tag;
     BOOL on = sender.on;
-    
+    NSString *key = @"";
     switch (tag) {
-        case 1000: // esp_enabled
-            [_settings setObject:@(on) forKey:@"esp_enabled"];
-            [FluckESP shared].enabled = on;
-            break;
-        case 1002: // esp_health
-            [_settings setObject:@(on) forKey:@"esp_health"];
-            [FluckESP shared].showHealth = on;
-            break;
-        case 1003: // esp_distance
-            [_settings setObject:@(on) forKey:@"esp_distance"];
-            [FluckESP shared].showDistance = on;
-            break;
-        case 1004: // esp_name
-            [_settings setObject:@(on) forKey:@"esp_name"];
-            [FluckESP shared].showName = on;
-            break;
-        case 2000: // aim_enabled
-            [_settings setObject:@(on) forKey:@"aim_enabled"];
-            [FluckAimbot shared].enabled = on;
-            break;
-        case 2001: // aim_silent
-            [_settings setObject:@(on) forKey:@"aim_silent"];
-            [FluckAimbot shared].silentAim = on;
-            break;
-        case 2002: // aim_autofire
-            [_settings setObject:@(on) forKey:@"aim_autofire"];
-            [FluckAimbot shared].autoFire = on;
-            break;
+        case 1000: key = @"esp_enabled"; [FluckESP shared].enabled = on; break;
+        case 1002: key = @"esp_health"; [FluckESP shared].showHealth = on; break;
+        case 1003: key = @"esp_distance"; [FluckESP shared].showDistance = on; break;
+        case 2000: key = @"aim_enabled"; [FluckAimbot shared].enabled = on; break;
+        case 2001: key = @"aim_silent"; [FluckAimbot shared].silentAim = on; break;
+        case 2002: key = @"aim_autofire"; [FluckAimbot shared].autoFire = on; break;
     }
+    [_settings setObject:@(on) forKey:key];
     [self saveSettings];
 }
 
 - (void)segChanged:(UISegmentedControl *)sender {
-    NSInteger tag = sender.tag;
     NSInteger idx = sender.selectedSegmentIndex;
-    
-    if (tag == 1001) { // esp_style
+    if (sender.tag == 1001) {
         [_settings setObject:@(idx) forKey:@"esp_style"];
         [FluckESP shared].style = idx;
     }
@@ -407,7 +327,6 @@ BOOL IsValidPointer(void *ptr) {
     _isMenuOpen = YES;
     _backgroundView.hidden = NO;
     _menuView.hidden = NO;
-    
     _menuView.transform = CGAffineTransformMakeScale(0.8, 0.8);
     _menuView.alpha = 0;
     [UIView animateWithDuration:0.3 animations:^{
@@ -420,7 +339,6 @@ BOOL IsValidPointer(void *ptr) {
 - (void)hide {
     if (!_isMenuOpen) return;
     _isMenuOpen = NO;
-    
     [UIView animateWithDuration:0.3 animations:^{
         self->_menuView.transform = CGAffineTransformMakeScale(0.8, 0.8);
         self->_menuView.alpha = 0;
@@ -448,36 +366,19 @@ BOOL IsValidPointer(void *ptr) {
     if (dict) {
         _settings = [dict mutableCopy];
     }
-    
-    // Apply settings
-    [FluckESP shared].enabled = [[_settings objectForKey:@"esp_enabled"] boolValue];
-    [FluckESP shared].style = [[_settings objectForKey:@"esp_style"] integerValue];
-    [FluckESP shared].showHealth = [[_settings objectForKey:@"esp_health"] boolValue];
-    [FluckESP shared].showDistance = [[_settings objectForKey:@"esp_distance"] boolValue];
-    [FluckESP shared].showName = [[_settings objectForKey:@"esp_name"] boolValue];
-    
-    [FluckAimbot shared].enabled = [[_settings objectForKey:@"aim_enabled"] boolValue];
-    [FluckAimbot shared].silentAim = [[_settings objectForKey:@"aim_silent"] boolValue];
-    [FluckAimbot shared].autoFire = [[_settings objectForKey:@"aim_autofire"] boolValue];
 }
 
 @end
 
-// ============================================
-// MARK: - HOOKING
-// ============================================
-
 static void (*orig_Update)(id self, SEL _cmd);
 static void new_Update(id self, SEL _cmd) {
     orig_Update(self, _cmd);
-    
     if (!_isInjected) {
         _isInjected = YES;
         dispatch_async(dispatch_get_main_queue(), ^{
             [[FluckMenu shared] show];
         });
     }
-    
     [[FluckESP shared] update];
     [[FluckAimbot shared] update];
 }
@@ -485,7 +386,6 @@ static void new_Update(id self, SEL _cmd) {
 static void (*orig_SendEvent)(id self, SEL _cmd, UIEvent *event);
 static void new_SendEvent(id self, SEL _cmd, UIEvent *event) {
     orig_SendEvent(self, _cmd, event);
-    
     NSSet *touches = [event allTouches];
     for (UITouch *touch in touches) {
         if (touch.phase == UITouchPhaseBegan && touch.tapCount == 3) {
@@ -494,37 +394,25 @@ static void new_SendEvent(id self, SEL _cmd, UIEvent *event) {
     }
 }
 
-// ============================================
-// MARK: - ENTRY POINT
-// ============================================
-
 __attribute__((constructor))
 static void initialize(void) {
-    NSLog(@"🔷 Fluck Mod loaded!");
-    
-    // Hook Unity Update
+    NSLog(@"Fluck Mod loaded!");
     Class unityClass = NSClassFromString(@"UnityPlayer");
     if (unityClass) {
         Method updateMethod = class_getInstanceMethod(unityClass, NSSelectorFromString(@"Update"));
         if (updateMethod) {
             orig_Update = (void (*)(id, SEL))method_getImplementation(updateMethod);
             method_setImplementation(updateMethod, (IMP)new_Update);
-            NSLog(@"✅ Hooked Unity Update");
         }
     }
-    
-    // Hook UIApplication sendEvent
     Class appClass = [UIApplication class];
     Method sendEventMethod = class_getInstanceMethod(appClass, @selector(sendEvent:));
     if (sendEventMethod) {
         orig_SendEvent = (void (*)(id, SEL, UIEvent *))method_getImplementation(sendEventMethod);
         method_setImplementation(sendEventMethod, (IMP)new_SendEvent);
-        NSLog(@"✅ Hooked sendEvent");
     }
-    
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 2 * NSEC_PER_SEC), dispatch_get_main_queue(), ^{
         [[FluckMenu shared] show];
-        NSLog(@"✅ Fluck Mod ready!");
     });
 }
 EOF
@@ -534,21 +422,17 @@ EOF
         cd fluck
         export THEOS=$HOME/theos
         make
-        
-    - name: Upload dylib (v4)
+    
+    - name: Upload dylib
       uses: actions/upload-artifact@v4
       with:
         name: fluck-dylib
         path: fluck/.theos/obj/debug/fluck.dylib
         if-no-files-found: error
-        compression-level: 6
-        overwrite: true
-
-    - name: Upload deb package (v4)
+    
+    - name: Upload deb package
       uses: actions/upload-artifact@v4
       with:
         name: fluck-deb
         path: fluck/*.deb
         if-no-files-found: error
-        compression-level: 6
-        overwrite: true
