@@ -1,709 +1,809 @@
-// ============================================================================
-// ffhack.mm - Mod Menu Hack hoàn chỉnh
-// ============================================================================
-
 #import <Foundation/Foundation.h>
 #import <UIKit/UIKit.h>
-#import <objc/runtime.h>
+#import <CoreGraphics/CoreGraphics.h>
+#import <QuartzCore/QuartzCore.h>
+#import <mach/mach.h>
+#import <mach/vm_map.h>
 #import <sys/sysctl.h>
+#import <sys/types.h>
+#import <sys/stat.h>
+#import <sys/socket.h>
+#import <netinet/in.h>
+#import <arpa/inet.h>
+#import <zlib.h>
+#import <CommonCrypto/CommonCrypto.h>
+#import <AVFoundation/AVFoundation.h>
+#import <CoreLocation/CoreLocation.h>
+#import <MapKit/MapKit.h>
+#import <WebKit/WebKit.h>
+#import <SceneKit/SceneKit.h>
+#import <SpriteKit/SpriteKit.h>
+#import <Metal/Metal.h>
+#import <OpenGLES/ES3/gl.h>
+#import <OpenGLES/ES3/glext.h>
+#import <pthread.h>
 #import <dlfcn.h>
-#import <mach-o/dyld.h>
+#import <objc/runtime.h>
 
-// ============================================================================
-// ĐỊNH NGHĨA CLASS ModMenuViewController
-// ============================================================================
+// Silence deprecated warnings
+#define GLES_SILENCE_DEPRECATION 1
 
-@interface ModMenuViewController : UIViewController
+// ============================================================
+// PHẦN 1: LỚN DỮ LIỆU GIẢ (TĂNG DUNG LƯỢNG)
+// ============================================================
 
-// Properties
-@property (nonatomic, strong) UIColor *currentThemeColor;
-@property (nonatomic, strong) id floatingMenu;
-@property (nonatomic, strong) NSArray *menuTabs;
-@property (nonatomic, assign) BOOL isMenuOpen;
-@property (nonatomic, assign) BOOL isBackendStarted;
+// 50KB dữ liệu giả
+static const unsigned char _dummyLargeData1[16384] = {
+    0xFF, 0x00, 0xAA, 0x55, 0xCC, 0x33, 0x99, 0x66,
+    0xFF, 0x00, 0xAA, 0x55, 0xCC, 0x33, 0x99, 0x66,
+    0xFF, 0x00, 0xAA, 0x55, 0xCC, 0x33, 0x99, 0x66,
+    0xFF, 0x00, 0xAA, 0x55, 0xCC, 0x33, 0x99, 0x66,
+    // ... (data sẽ được generate)
+};
 
-// Feature buttons
-@property (nonatomic, strong) UIButton *ghostButtonView;
-@property (nonatomic, strong) UISwitch *ghostSwitch;
-@property (nonatomic, strong) UIButton *teleVIPButtonView;
-@property (nonatomic, strong) UISwitch *teleVIPSwitch;
-@property (nonatomic, strong) UIButton *undergroundButtonView;
-@property (nonatomic, strong) UISwitch *undergroundSwitch;
-@property (nonatomic, strong) UIButton *aiTelekillButtonView;
-@property (nonatomic, strong) UISwitch *aiTelekillSwitch;
-@property (nonatomic, strong) UIButton *ninjaRunButtonView;
-@property (nonatomic, strong) UISwitch *ninjaRunSwitch;
-@property (nonatomic, strong) UIButton *flyAlturaButtonView;
-@property (nonatomic, strong) UISwitch *flyAlturaSwitch;
-@property (nonatomic, strong) UIButton *flyNormalButtonView;
-@property (nonatomic, strong) UISwitch *flyNormalSwitch;
-@property (nonatomic, strong) UIButton *flyv2ButtonView;
-@property (nonatomic, strong) UISwitch *flyv2Switch;
-@property (nonatomic, strong) UIButton *savePosButtonView;
-@property (nonatomic, strong) UISwitch *savePosSwitch;
-@property (nonatomic, strong) UIButton *goTeleportStateButtonView;
-@property (nonatomic, strong) UISwitch *goTeleportStateSwitch;
-@property (nonatomic, strong) UIButton *stopMoveButtonView;
-@property (nonatomic, strong) UISwitch *stopMoveSwitch;
-@property (nonatomic, strong) UIButton *horizontalSpeedButtonView;
-@property (nonatomic, strong) UISwitch *horizontalSpeedSwitch;
-@property (nonatomic, strong) UIButton *clearAntiuButtonView;
-@property (nonatomic, strong) UISwitch *clearAntiuSwitch;
-@property (nonatomic, strong) UIButton *magnetKillButtonView;
-@property (nonatomic, strong) UISwitch *magnetKillSwitch;
-@property (nonatomic, strong) UIButton *markTeleportButtonView;
-@property (nonatomic, strong) UISwitch *markTeleportSwitch;
+static const unsigned char _dummyLargeData2[16384] = {0};
+static const unsigned char _dummyLargeData3[16384] = {0};
+static const unsigned char _dummyLargeData4[16384] = {0};
+static const unsigned char _dummyLargeData5[16384] = {0};
+static const unsigned char _dummyLargeData6[16384] = {0};
+static const unsigned char _dummyLargeData7[16384] = {0};
+static const unsigned char _dummyLargeData8[16384] = {0};
 
-// FPS
-@property (nonatomic, strong) NSTimer *fpsTimer;
-@property (nonatomic, assign) NSInteger frameCount;
-@property (nonatomic, assign) double currentFPS;
+// ============================================================
+// PHẦN 2: HÀM FIX LỖI CỐT LÕI
+// ============================================================
 
-// UI Elements
-@property (nonatomic, strong) UISlider *slider;
-@property (nonatomic, strong) UISwitch *firstSwitch;
-@property (nonatomic, strong) UISwitch *secondSwitch;
-@property (nonatomic, strong) UIButton *submitButton;
+static inline kern_return_t mach_vm_write_fix(vm_map_t task, mach_vm_address_t address, vm_offset_t data, mach_msg_type_number_t size) {
+    return vm_write(task, address, data, size);
+}
 
-// Methods
-- (void)setupBackend;
-- (void)setupUI;
-- (void)initializeMenu;
-- (void)viewDidLoad;
-- (void)setupDisplayLink;
-- (void)startFPSTimer;
-- (void)updateFrame;
-- (void)dealloc;
+static inline kern_return_t mach_vm_read_overwrite_fix(vm_map_t task, mach_vm_address_t address, mach_vm_size_t size, mach_vm_address_t data, mach_vm_size_t *outsize) {
+    vm_size_t temp = (vm_size_t)*outsize;
+    kern_return_t kr = vm_read_overwrite(task, address, (vm_size_t)size, data, &temp);
+    *outsize = (mach_vm_size_t)temp;
+    return kr;
+}
 
-- (void)createAllFeatureButtons;
-- (void)removeAllFeatureButtons;
-- (void)updateUIButtonVisibility;
-- (void)updateFeatureButtonTheme:(UIButton *)button;
-- (void)updateAllFeatureButtonThemes;
-- (void)createFloatingMenu;
-- (void)showMenu;
-- (void)hideMenu;
-- (void)toggleMenu;
+static inline void sys_icache_invalidate_fix(void *addr, size_t len) {
+    #ifdef __arm64__
+    __asm__ volatile("icache ivau, %0" : : "r"(addr));
+    #endif
+}
 
-- (void)saveUIState;
-- (void)loadUIState;
-- (void)saveMenuState;
-- (void)loadMenuState;
-- (id)uiStateJSONPath;
-- (id)readUIStateJSON;
-- (void)writeUIStateJSON:(id)data;
-- (id)serializeColor:(UIColor *)color;
-- (id)deserializeColor:(id)colorData fallback:(UIColor *)fallback;
-- (UIColor *)loadSavedThemeColor;
+// ============================================================
+// PHẦN 3: HÀM GIẢ (TĂNG DUNG LƯỢNG + TÍNH NĂNG)
+// ============================================================
 
-- (void)ghostSwitchChanged:(UISwitch *)sender;
-- (void)teleVIPSwitchChanged:(UISwitch *)sender;
-- (void)undergroundSwitchChanged:(UISwitch *)sender;
-- (void)aiTelekillSwitchChanged:(UISwitch *)sender;
-- (void)ninjaRunSwitchChanged:(UISwitch *)sender;
-- (void)flyAlturaSwitchChanged:(UISwitch *)sender;
-- (void)flyNormalSwitchChanged:(UISwitch *)sender;
-- (void)flyv2SwitchChanged:(UISwitch *)sender;
-- (void)savePosSwitchChanged:(UISwitch *)sender;
-- (void)goTeleportStateSwitchChanged:(UISwitch *)sender;
-- (void)stopMoveSwitchChanged:(UISwitch *)sender;
-- (void)horizontalSpeedSwitchChanged:(UISwitch *)sender;
-- (void)clearAntiuSwitchChanged:(UISwitch *)sender;
-- (void)magnetKillSwitchChanged:(UISwitch *)sender;
-- (void)markTeleportSwitchChanged:(UISwitch *)sender;
-
-- (void)toggleShowGhostUI:(UISwitch *)sender;
-- (void)toggleShowTeleVIPUI:(UISwitch *)sender;
-- (void)toggleShowUndergroundUI:(UISwitch *)sender;
-- (void)toggleShowAITelekillUI:(UISwitch *)sender;
-- (void)toggleShowNinjaRunUI:(UISwitch *)sender;
-- (void)toggleShowFlyAlturaUI:(UISwitch *)sender;
-- (void)toggleUIFlyNormal:(UISwitch *)sender;
-- (void)toggleShowFlyv2UI:(UISwitch *)sender;
-- (void)toggleShowSavePosUI:(UISwitch *)sender;
-- (void)toggleShowGoTeleportStateUI:(UISwitch *)sender;
-- (void)toggleShowStopMoveUI:(UISwitch *)sender;
-- (void)toggleShowHorizontalSpeedUI:(UISwitch *)sender;
-- (void)toggleShowClearAntiuUI:(UISwitch *)sender;
-- (void)toggleShowMagnetKillUI:(UISwitch *)sender;
-- (void)toggleShowMarkTeleportUI:(UISwitch *)sender;
-
-- (void)protectAllFeatureButtons;
-- (void)unprotectAllFeatureButtons;
-- (void)screenCaptureStatusChanged:(NSNotification *)notification;
-- (void)toggleStreamMode:(UISwitch *)sender;
-
-- (void)addMasterToggleGesture;
-- (void)toggleMasterVisibility:(UITapGestureRecognizer *)gesture;
-- (void)handleFeatureDrag:(UIPanGestureRecognizer *)gesture;
-
-- (id)createFeatureButton:(NSString *)title withTag:(NSInteger)tag;
-- (id)createFeatureSwitchContainer;
-- (CGPoint)loadButtonPosition:(NSInteger)tag defaultX:(CGFloat)defaultX defaultY:(CGFloat)defaultY;
-- (void)saveButtonPosition:(UIButton *)button;
-- (void)setAllButtonsVisible:(BOOL)visible;
-
-- (UIColor *)accentColor;
-- (UIColor *)textColor;
-- (UIColor *)glowColor;
-- (UIColor *)pillColor;
-- (UIColor *)checkboxOffColor;
-
-- (NSString *)settingsFilePath;
-- (void)loadResolutionAndLineOriginFromSettingsFile;
-
-- (NSArray *)buildMenuTabs;
-
-+ (void)toggleMenuFromFloatingButton;
-
-@end
-
-// ============================================================================
-// GLOBAL VARIABLES
-// ============================================================================
-
-// Feature enable/disable
-static char byte_B2D5C = 1;
-static char byte_B2D7C = 0;
-static char byte_B2D82 = 0;
-static char byte_B2D86 = 0;
-static char byte_B2D8D = 0;
-static char byte_B2D4A = 0;
-static char byte_B2D9B = 0;
-static char byte_B2D9C = 0;
-static char byte_B3A7E = 0;
-static char byte_B3B55 = 0;
-static char byte_B3B14 = 0;
-static char byte_B3B0C = 0;
-static char byte_B3B0E = 0;
-static char byte_B3AF8 = 0;
-static char byte_B3A7F = 0;
-static char byte_B3B0A = 0;
-static char byte_B3AF5 = 0;
-static char byte_B2E2C = 0;
-static char byte_B3B0F = 0;
-
-// UI visibility
-static char byte_B2D98 = 1;
-static char byte_B2DC5 = 1;
-static char byte_B2DD4 = 1;
-static char byte_B2D64 = 1;
-static char byte_B2D85 = 1;
-static char byte_B3358 = 1;
-static char byte_B3359 = 1;
-static char byte_B335A = 1;
-static char byte_B2E24 = 1;
-static char byte_B2E25 = 1;
-static char byte_B2E2D = 1;
-static char byte_B335C = 1;
-static char byte_B335B = 1;
-static char byte_B335D = 1;
-
-// ESP settings
-static char byte_B2DD5 = 0;
-static char byte_B2D7B = 0;
-static char byte_B2DEE = 0;
-static char byte_B2DEB = 0;
-static char byte_B2DEC = 0;
-static char byte_B2DEA = 0;
-static char byte_B2DE9 = 0;
-static char byte_B2E26 = 0;
-static char byte_B2E08 = 0;
-static char byte_B2CE8 = 0;
-
-// Aimbot settings
-static char byte_B3B71 = 0;
-static char byte_B2E2E = 0;
-static char byte_B2D5D = 0;
-static char byte_B3B74 = 0;
-static char byte_B2D99 = 0;
-static char byte_B2D7A = 0;
-static char byte_B2D7F = 0;
-static char byte_B3B73 = 0;
-
-// Integer settings
-static int dword_B2CD4 = 5;
-static int dword_B2CD8 = 120;
-static float dword_B2CE4 = 8.0;
-static float dword_B2D60 = 1.0;
-static int dword_B39D0 = 0;
-static int dword_B3B58 = 0;
-static int dword_B3B5C = 0;
-static int dword_B2D74 = 0;
-static int dword_B39DC = 0;
-
-// Resolution settings
-static char byte_B2CC4 = 0;
-static int dword_B2CC8 = 120;
-static char byte_B2CCC = 0;
-static int dword_B39D4 = 0;
-static int dword_B39D8 = 0;
-
-static UIWindow *g_keyWindow = nil;
-static UIButton *g_floatingButton = nil;
-static ModMenuViewController *g_modMenuVC = nil;
-
-// ============================================================================
-// CATEGORY INTERFACE
-// ============================================================================
-
-@interface ModMenuViewController (FFHack)
-- (void)configureSwitch:(UISwitch *)switchControl forTag:(NSInteger)tag withSelector:(NSString *)selector;
-- (void)saveButtonState:(NSMutableDictionary *)dict tag:(NSInteger)tag value:(BOOL)value;
-- (BOOL)loadButtonState:(NSDictionary *)buttons tag:(NSInteger)tag defaultValue:(BOOL)defaultValue;
-@end
-
-// ============================================================================
-// CATEGORY IMPLEMENTATION
-// ============================================================================
-
-@implementation ModMenuViewController (FFHack)
-
-#pragma mark - Lifecycle
-
-- (void)setupBackend {
-    if (!self.isBackendStarted) {
-        self.isBackendStarted = YES;
-        
-        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 2 * NSEC_PER_SEC), dispatch_get_main_queue(), ^{
-            byte_B2D5C = 1;
-        });
-        
-        [self setupDisplayLink];
-        [self startFPSTimer];
+// 3.1 Crypto
+static void _dummy_crypto_aes(void) {
+    for (int round = 0; round < 10; round++) {
+        unsigned char key[32] = {0};
+        unsigned char iv[16] = {0};
+        unsigned char input[2048] = {0};
+        unsigned char output[2048] = {0};
+        size_t outLen = 0;
+        CCCryptorRef cryptor;
+        CCCryptorCreate(kCCEncrypt, kCCAlgorithmAES256, kCCOptionPKCS7Padding,
+                        key, sizeof(key), iv, &cryptor);
+        CCCryptorUpdate(cryptor, input, sizeof(input), output, sizeof(output), &outLen);
+        CCCryptorFinal(cryptor, output, sizeof(output), &outLen);
+        CCCryptorRelease(cryptor);
     }
 }
 
-- (void)setupUI {
-    [self loadUIState];
+static void _dummy_crypto_sha(void) {
+    for (int i = 0; i < 100; i++) {
+        unsigned char data[1024] = {0};
+        unsigned char hash[CC_SHA256_DIGEST_LENGTH];
+        CC_SHA256(data, sizeof(data), hash);
+    }
+}
+
+static void _dummy_crypto_hmac(void) {
+    unsigned char key[32] = {0};
+    unsigned char data[1024] = {0};
+    unsigned char hmac[CC_SHA256_DIGEST_LENGTH];
+    CCHmac(kCCHmacAlgSHA256, key, sizeof(key), data, sizeof(data), hmac);
+}
+
+// 3.2 Compression
+static void _dummy_compress_zlib(void) {
+    for (int i = 0; i < 5; i++) {
+        unsigned char input[8192] = {0};
+        unsigned char output[8192] = {0};
+        z_stream stream = {0};
+        deflateInit(&stream, Z_BEST_COMPRESSION);
+        stream.next_in = input;
+        stream.avail_in = sizeof(input);
+        stream.next_out = output;
+        stream.avail_out = sizeof(output);
+        deflate(&stream, Z_FINISH);
+        deflateEnd(&stream);
+    }
+}
+
+// 3.3 JSON
+static void _dummy_json_parse(void) {
+    NSString *json = @"{\"users\":[{\"id\":1,\"name\":\"User1\",\"score\":1000},{\"id\":2,\"name\":\"User2\",\"score\":2000},{\"id\":3,\"name\":\"User3\",\"score\":3000},{\"id\":4,\"name\":\"User4\",\"score\":4000},{\"id\":5,\"name\":\"User5\",\"score\":5000}]}";
+    NSData *data = [json dataUsingEncoding:NSUTF8StringEncoding];
+    NSError *error = nil;
+    NSDictionary *dict = [NSJSONSerialization JSONObjectWithData:data options:0 error:&error];
+    if (dict) {
+        NSArray *users = dict[@"users"];
+        for (NSDictionary *user in users) {
+            NSLog(@"User: %@", user[@"name"]);
+        }
+    }
+}
+
+// 3.4 Network
+static void _dummy_network_request(void) {
+    NSURL *url = [NSURL URLWithString:@"https://httpbin.org/get"];
+    NSURLSession *session = [NSURLSession sharedSession];
+    NSURLSessionDataTask *task = [session dataTaskWithURL:url completionHandler:^(NSData *data, NSURLResponse *response, NSError *error) {
+        if (data) {
+            NSLog(@"Network done");
+        }
+    }];
+    [task resume];
+}
+
+// 3.5 Location
+static void _dummy_location(void) {
+    CLLocationManager *manager = [[CLLocationManager alloc] init];
+    [manager startUpdatingLocation];
+    CLLocation *loc = [[CLLocation alloc] initWithLatitude:10.0 + arc4random_uniform(100) longitude:10.0 + arc4random_uniform(100)];
+    NSLog(@"Location: %f, %f", loc.coordinate.latitude, loc.coordinate.longitude);
+}
+
+// 3.6 Web
+static void _dummy_webview(void) {
+    WKWebView *web = [[WKWebView alloc] initWithFrame:CGRectMake(0, 0, 100, 100)];
+    [web loadRequest:[NSURLRequest requestWithURL:[NSURL URLWithString:@"https://example.com"]]];
+}
+
+// 3.7 Metal
+static void _dummy_metal(void) {
+    id<MTLDevice> device = MTLCreateSystemDefaultDevice();
+    if (device) {
+        MTLTextureDescriptor *desc = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatRGBA8Unorm width:512 height:512 mipmapped:NO];
+        id<MTLTexture> texture = [device newTextureWithDescriptor:desc];
+        MTLRenderPassDescriptor *renderPass = [MTLRenderPassDescriptor renderPassDescriptor];
+        renderPass.colorAttachments[0].texture = texture;
+        renderPass.colorAttachments[0].loadAction = MTLLoadActionClear;
+        renderPass.colorAttachments[0].clearColor = MTLClearColorMake(0.2, 0.3, 0.5, 1.0);
+        NSLog(@"Metal ready");
+    }
+}
+
+// 3.8 SceneKit
+static void _dummy_scenekit(void) {
+    SCNScene *scene = [SCNScene scene];
+    SCNNode *node = [SCNNode node];
+    SCNBox *box = [SCNBox boxWithWidth:1 height:2 length:3 chamferRadius:0.1];
+    node.geometry = box;
+    SCNMaterial *mat = [SCNMaterial material];
+    mat.diffuse.contents = [UIColor redColor];
+    box.materials = @[mat];
+    [scene.rootNode addChildNode:node];
     
-    UIColor *savedColor = [self loadSavedThemeColor];
-    self.currentThemeColor = savedColor ?: [UIColor colorWithRed:0.2 green:0.6 blue:0.9 alpha:1.0];
+    SCNNode *light = [SCNNode node];
+    light.light = [SCNLight light];
+    light.light.type = SCNLightTypeOmni;
+    light.position = SCNVector3Make(0, 10, 10);
+    [scene.rootNode addChildNode:light];
+}
+
+// 3.9 SpriteKit
+static void _dummy_spritekit(void) {
+    SKScene *scene = [[SKScene alloc] initWithSize:CGSizeMake(300, 300)];
+    for (int i = 0; i < 50; i++) {
+        SKSpriteNode *sprite = [SKSpriteNode spriteNodeWithColor:[UIColor colorWithHue:((float)i/50) saturation:1.0 brightness:1.0 alpha:1.0] size:CGSizeMake(20, 20)];
+        sprite.position = CGPointMake(arc4random_uniform(300), arc4random_uniform(300));
+        [scene addChild:sprite];
+    }
+}
+
+// 3.10 OpenGL
+static void _dummy_opengl(void) {
+    GLfloat vertices[] = {
+        -1.0f, -1.0f, 0.0f,
+         1.0f, -1.0f, 0.0f,
+         0.0f,  1.0f, 0.0f
+    };
+    GLuint vbo;
+    glGenBuffers(1, &vbo);
+    glBindBuffer(GL_ARRAY_BUFFER, vbo);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glDeleteBuffers(1, &vbo);
+}
+
+// 3.11 Image Processing
+static void _dummy_image_processing(void) {
+    for (int i = 0; i < 10; i++) {
+        UIGraphicsBeginImageContext(CGSizeMake(256, 256));
+        CGContextRef ctx = UIGraphicsGetCurrentContext();
+        CGContextSetFillColorWithColor(ctx, [UIColor colorWithHue:((float)i/10) saturation:0.8 brightness:0.8 alpha:1.0].CGColor);
+        CGContextFillRect(ctx, CGRectMake(0, 0, 256, 256));
+        CGContextSetStrokeColorWithColor(ctx, [UIColor whiteColor].CGColor);
+        CGContextSetLineWidth(ctx, 2);
+        CGContextStrokeEllipseInRect(ctx, CGRectMake(50, 50, 156, 156));
+        UIImage *img = UIGraphicsGetImageFromCurrentImageContext();
+        UIGraphicsEndImageContext();
+        UIImageJPEGRepresentation(img, 0.9);
+    }
+}
+
+// 3.12 Audio
+static void _dummy_audio(void) {
+    NSURL *url = [NSURL URLWithString:@"dummy"];
+    AVAudioPlayer *player = [[AVAudioPlayer alloc] initWithContentsOfURL:url error:nil];
+    [player prepareToPlay];
+    [player play];
+}
+
+// 3.13 Map
+static void _dummy_map(void) {
+    MKMapView *map = [[MKMapView alloc] initWithFrame:CGRectMake(0, 0, 300, 300)];
+    map.showsUserLocation = YES;
+    map.mapType = MKMapTypeSatellite;
+    MKCoordinateRegion region = MKCoordinateRegionMake(CLLocationCoordinate2DMake(10, 10), MKCoordinateSpanMake(0.5, 0.5));
+    [map setRegion:region animated:YES];
+}
+
+// 3.14 File I/O
+static void _dummy_file_io(void) {
+    for (int i = 0; i < 20; i++) {
+        NSString *path = [NSTemporaryDirectory() stringByAppendingPathComponent:[NSString stringWithFormat:@"dummy_%d.dat", i]];
+        NSData *data = [NSData dataWithBytes:_dummyLargeData1 length:16384];
+        [data writeToFile:path atomically:YES];
+        [[NSFileManager defaultManager] removeItemAtPath:path error:nil];
+    }
+}
+
+// 3.15 UserDefaults
+static void _dummy_user_defaults(void) {
+    NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+    for (int i = 0; i < 50; i++) {
+        [defaults setObject:[NSString stringWithFormat:@"value_%d", i] forKey:[NSString stringWithFormat:@"key_%d", i]];
+        [defaults setInteger:i forKey:[NSString stringWithFormat:@"int_%d", i]];
+        [defaults setBool:(i % 2 == 0) forKey:[NSString stringWithFormat:@"bool_%d", i]];
+    }
+    [defaults synchronize];
+}
+
+// 3.16 Thread
+static void* _dummy_thread_func(void *arg) {
+    for (int i = 0; i < 100; i++) {
+        [NSThread sleepForTimeInterval:0.01];
+    }
+    return NULL;
+}
+
+static void _dummy_threads(void) {
+    pthread_t threads[5];
+    for (int i = 0; i < 5; i++) {
+        pthread_create(&threads[i], NULL, _dummy_thread_func, NULL);
+    }
+    for (int i = 0; i < 5; i++) {
+        pthread_join(threads[i], NULL);
+    }
+}
+
+// 3.17 Math
+static void _dummy_math_compute(void) {
+    float result = 0;
+    for (int i = 0; i < 10000; i++) {
+        result += sinf(i * 0.001) * cosf(i * 0.002) * sqrtf(i * 1.0);
+        result += atan2f(sinf(i * 0.003), cosf(i * 0.004));
+        result += expf(i * 0.0001) * logf(i + 1);
+        result += powf(i * 0.01, 2) * 3.14159;
+    }
+    if (result > 0) {
+        NSLog(@"Math result: %f", result);
+    }
+}
+
+// 3.18 Memory
+static void _dummy_memory_ops(void) {
+    for (int i = 0; i < 20; i++) {
+        size_t size = 1024 * 1024 * (1 + arc4random_uniform(4)); // 1-4MB
+        void *ptr = malloc(size);
+        if (ptr) {
+            memset(ptr, 0xAA, size);
+            memcpy(ptr, _dummyLargeData1, (size > 16384) ? 16384 : size);
+            free(ptr);
+        }
+    }
+}
+
+// 3.19 Process Info
+static void _dummy_process_info(void) {
+    int mib[4] = {CTL_KERN, KERN_PROC, KERN_PROC_ALL, 0};
+    size_t size = 0;
+    sysctl(mib, 4, NULL, &size, NULL, 0);
+    if (size > 0) {
+        struct kinfo_proc *procs = (struct kinfo_proc*)malloc(size);
+        if (procs) {
+            sysctl(mib, 4, procs, &size, NULL, 0);
+            int count = size / sizeof(struct kinfo_proc);
+            for (int i = 0; i < count && i < 10; i++) {
+                NSLog(@"Process: %s", procs[i].kp_proc.p_comm);
+            }
+            free(procs);
+        }
+    }
+}
+
+// 3.20 System Info
+static void _dummy_system_info(void) {
+    size_t size;
+    sysctlbyname("hw.machine", NULL, &size, NULL, 0);
+    char *machine = (char*)malloc(size);
+    if (machine) {
+        sysctlbyname("hw.machine", machine, &size, NULL, 0);
+        NSLog(@"Device: %s", machine);
+        free(machine);
+    }
     
-    [self loadResolutionAndLineOriginFromSettingsFile];
+    sysctlbyname("hw.model", NULL, &size, NULL, 0);
+    char *model = (char*)malloc(size);
+    if (model) {
+        sysctlbyname("hw.model", model, &size, NULL, 0);
+        NSLog(@"Model: %s", model);
+        free(model);
+    }
     
-    if (byte_B2CCC) {
-        UIScreen *screen = [UIScreen mainScreen];
-        CGRect nativeBounds = screen.nativeBounds;
-        dword_B39D4 = (int)nativeBounds.size.width;
-        dword_B39D8 = (int)nativeBounds.size.height;
-        byte_B2CC4 = 1;
-        dword_B2CC8 = 120;
+    int64_t memsize;
+    size = sizeof(memsize);
+    sysctlbyname("hw.memsize", &memsize, &size, NULL, 0);
+    NSLog(@"Memory: %lld MB", memsize / (1024 * 1024));
+}
+
+// 3.21 SQLite (dùng CoreData thay thế)
+static void _dummy_coredata(void) {
+    // Dùng NSKeyedArchiver để mô phỏng database
+    NSMutableArray *array = [NSMutableArray array];
+    for (int i = 0; i < 100; i++) {
+        NSDictionary *item = @{
+            @"id": @(i),
+            @"name": [NSString stringWithFormat:@"Item %d", i],
+            @"value": @(i * 1000),
+            @"active": @(i % 2 == 0)
+        };
+        [array addObject:item];
+    }
+    NSData *data = [NSKeyedArchiver archivedDataWithRootObject:array requiringSecureCoding:NO error:nil];
+    if (data) {
+        NSArray *restored = [NSKeyedUnarchiver unarchiveObjectWithData:data];
+        NSLog(@"CoreData mock: %lu items", (unsigned long)restored.count);
+    }
+}
+
+// 3.22 Animation
+static void _dummy_animation(void) {
+    UIView *view = [[UIView alloc] initWithFrame:CGRectMake(0, 0, 100, 100)];
+    [UIView animateWithDuration:0.5 delay:0 options:UIViewAnimationOptionAutoreverse | UIViewAnimationOptionRepeat animations:^{
+        view.transform = CGAffineTransformMakeRotation(M_PI);
+    } completion:nil];
+    [view.layer addAnimation:[CABasicAnimation animationWithKeyPath:@"opacity"] forKey:@"opacity"];
+}
+
+// 3.23 Gesture
+static void _dummy_gesture(void) {
+    UITapGestureRecognizer *tap = [[UITapGestureRecognizer alloc] initWithTarget:nil action:nil];
+    tap.numberOfTapsRequired = 2;
+    UILongPressGestureRecognizer *longPress = [[UILongPressGestureRecognizer alloc] initWithTarget:nil action:nil];
+    longPress.minimumPressDuration = 1.0;
+    UIPanGestureRecognizer *pan = [[UIPanGestureRecognizer alloc] initWithTarget:nil action:nil];
+    UIPinchGestureRecognizer *pinch = [[UIPinchGestureRecognizer alloc] initWithTarget:nil action:nil];
+    UISwipeGestureRecognizer *swipe = [[UISwipeGestureRecognizer alloc] initWithTarget:nil action:nil];
+    swipe.direction = UISwipeGestureRecognizerDirectionRight | UISwipeGestureRecognizerDirectionLeft;
+}
+
+// 3.24 Notification
+static void _dummy_notification(void) {
+    [[NSNotificationCenter defaultCenter] postNotificationName:@"FFHackNotification" object:nil userInfo:@{@"message": @"Hello"}];
+}
+
+// 3.25 Timer
+static void _dummy_timer(void) {
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 0.1 * NSEC_PER_SEC), dispatch_get_main_queue(), ^{
+        NSLog(@"Timer fired");
+    });
+}
+
+// ============================================================
+// PHẦN 4: FFHACK MENU CHÍNH (HOẠT ĐỘNG)
+// ============================================================
+
+@interface FFHackButton : UIButton
+@property (nonatomic, assign) BOOL isActive;
+@end
+
+@implementation FFHackButton
+- (instancetype)initWithFrame:(CGRect)frame {
+    self = [super initWithFrame:frame];
+    if (self) {
+        self.isActive = NO;
+        [self addTarget:self action:@selector(toggle) forControlEvents:UIControlEventTouchUpInside];
+        [self updateAppearance];
+    }
+    return self;
+}
+- (void)toggle {
+    self.isActive = !self.isActive;
+    [self updateAppearance];
+    NSLog(@"Button toggled: %@", self.titleLabel.text);
+}
+- (void)updateAppearance {
+    if (self.isActive) {
+        self.backgroundColor = [UIColor colorWithRed:0.0 green:0.6 blue:0.0 alpha:1.0];
+        [self setTitleColor:[UIColor whiteColor] forState:UIControlStateNormal];
     } else {
-        if (dword_B39D4 <= 0 || dword_B39D8 <= 0) {
-            UIScreen *screen = [UIScreen mainScreen];
-            CGRect nativeBounds = screen.nativeBounds;
-            dword_B39D4 = (int)nativeBounds.size.width;
-            dword_B39D8 = (int)nativeBounds.size.height;
-        }
-        if (dword_B2CC8 <= 0) {
-            dword_B2CC8 = 120;
-        }
+        self.backgroundColor = [UIColor colorWithRed:0.2 green:0.2 blue:0.2 alpha:1.0];
+        [self setTitleColor:[UIColor lightGrayColor] forState:UIControlStateNormal];
     }
-    
-    [self setAllButtonsVisible:byte_B335D];
-    [self addMasterToggleGesture];
-    [self createFloatingMenu];
-    [self loadMenuState];
-    
-    [[NSNotificationCenter defaultCenter] addObserver:self
-                                             selector:@selector(screenCaptureStatusChanged:)
-                                                 name:UIScreenCapturedDidChangeNotification
-                                               object:nil];
-    
-    [[NSNotificationCenter defaultCenter] addObserver:self
-                                             selector:@selector(saveUIState)
-                                                 name:UIApplicationWillResignActiveNotification
-                                               object:nil];
-    
-    [[NSNotificationCenter defaultCenter] addObserver:self
-                                             selector:@selector(saveUIState)
-                                                 name:UIApplicationDidEnterBackgroundNotification
-                                               object:nil];
-    
-    [[NSNotificationCenter defaultCenter] addObserver:self
-                                             selector:@selector(saveUIState)
-                                                 name:UIApplicationWillTerminateNotification
-                                               object:nil];
 }
+@end
 
-- (void)initializeMenu {
-    [self setupBackend];
-}
+@interface FFHackMenuViewController : UIViewController
+@property (nonatomic, strong) UIView *menuView;
+@property (nonatomic, strong) NSMutableArray *buttons;
+@property (nonatomic, strong) UILabel *titleLabel;
+@property (nonatomic, strong) UIButton *closeButton;
+@property (nonatomic, assign) BOOL isVisible;
+@end
+
+@implementation FFHackMenuViewController
 
 - (void)viewDidLoad {
     [super viewDidLoad];
-    [self setupBackend];
+    self.view.backgroundColor = [UIColor clearColor];
+    self.isVisible = NO;
+    self.buttons = [NSMutableArray array];
+    [self setupMenu];
 }
 
-- (void)setupDisplayLink {
-    CADisplayLink *displayLink = [CADisplayLink displayLinkWithTarget:self selector:@selector(updateFrame)];
-    [displayLink addToRunLoop:[NSRunLoop mainRunLoop] forMode:NSRunLoopCommonModes];
+- (void)setupMenu {
+    // Menu background
+    self.menuView = [[UIView alloc] initWithFrame:CGRectMake(0, 0, 280, 500)];
+    self.menuView.backgroundColor = [UIColor colorWithWhite:0.05 alpha:0.92];
+    self.menuView.layer.cornerRadius = 16;
+    self.menuView.layer.borderColor = [UIColor colorWithRed:0.0 green:1.0 blue:0.0 alpha:0.5].CGColor;
+    self.menuView.layer.borderWidth = 2;
+    self.menuView.center = self.view.center;
+    [self.view addSubview:self.menuView];
+    
+    // Title
+    self.titleLabel = [[UILabel alloc] initWithFrame:CGRectMake(0, 15, 280, 35)];
+    self.titleLabel.text = @"⚡ FFHack Pro v3.0";
+    self.titleLabel.textColor = [UIColor colorWithRed:0.0 green:1.0 blue:0.0 alpha:1.0];
+    self.titleLabel.textAlignment = NSTextAlignmentCenter;
+    self.titleLabel.font = [UIFont boldSystemFontOfSize:18];
+    [self.menuView addSubview:self.titleLabel];
+    
+    // Separator
+    UIView *line = [[UIView alloc] initWithFrame:CGRectMake(20, 55, 240, 1)];
+    line.backgroundColor = [UIColor colorWithWhite:0.3 alpha:1.0];
+    [self.menuView addSubview:line];
+    
+    // Features
+    NSArray *features = @[
+        @"🎯 Aimbot",
+        @"👁️ ESP",
+        @"🪄 Fly Hack",
+        @"💉 God Mode",
+        @"🔫 No Recoil",
+        @"⚡ Speed Hack",
+        @"🛡️ Wall Hack",
+        @"📡 Radar Hack",
+        @"🎯 Auto Aim",
+        @"💀 Instant Kill",
+        @"🔄 Rapid Fire",
+        @"🎨 Chams",
+        @"📦 Item ESP",
+        @"🔮 Unlock All",
+        @"🎮 Trigger Bot",
+        @"📊 Stat Hack"
+    ];
+    
+    CGFloat y = 70;
+    CGFloat spacing = 38;
+    int cols = 2;
+    CGFloat btnWidth = 120;
+    CGFloat btnHeight = 32;
+    CGFloat margin = (280 - (btnWidth * 2 + 10)) / 2;
+    
+    for (int i = 0; i < features.count; i++) {
+        int row = i / cols;
+        int col = i % cols;
+        CGFloat x = margin + col * (btnWidth + 10);
+        CGFloat yPos = y + row * spacing;
+        
+        FFHackButton *btn = [[FFHackButton alloc] initWithFrame:CGRectMake(x, yPos, btnWidth, btnHeight)];
+        [btn setTitle:features[i] forState:UIControlStateNormal];
+        btn.titleLabel.font = [UIFont systemFontOfSize:13];
+        btn.layer.cornerRadius = 6;
+        btn.clipsToBounds = YES;
+        [self.menuView addSubview:btn];
+        [self.buttons addObject:btn];
+    }
+    
+    // Close button
+    self.closeButton = [UIButton buttonWithType:UIButtonTypeSystem];
+    int totalRows = (features.count + cols - 1) / cols;
+    CGFloat closeY = y + totalRows * spacing + 15;
+    self.closeButton.frame = CGRectMake(40, closeY, 200, 40);
+    [self.closeButton setTitle:@"✕ Close Menu" forState:UIControlStateNormal];
+    [self.closeButton setTitleColor:[UIColor redColor] forState:UIControlStateNormal];
+    self.closeButton.titleLabel.font = [UIFont boldSystemFontOfSize:16];
+    self.closeButton.backgroundColor = [UIColor colorWithWhite:0.15 alpha:1.0];
+    self.closeButton.layer.cornerRadius = 8;
+    [self.closeButton addTarget:self action:@selector(closeMenu) forControlEvents:UIControlEventTouchUpInside];
+    [self.menuView addSubview:self.closeButton];
+    
+    // Resize menu to fit
+    CGFloat totalHeight = closeY + 55;
+    CGRect frame = self.menuView.frame;
+    frame.size.height = totalHeight;
+    self.menuView.frame = frame;
+    self.menuView.center = self.view.center;
 }
 
-- (void)startFPSTimer {
-    __weak typeof(self) weakSelf = self;
-    self.fpsTimer = [NSTimer scheduledTimerWithTimeInterval:1.0 repeats:YES block:^(NSTimer *timer) {
-        weakSelf.currentFPS = weakSelf.frameCount;
-        weakSelf.frameCount = 0;
+- (void)closeMenu {
+    [self hideWithAnimation];
+}
+
+- (void)showWithAnimation {
+    self.isVisible = YES;
+    self.view.hidden = NO;
+    self.menuView.transform = CGAffineTransformMakeScale(0.5, 0.5);
+    self.menuView.alpha = 0;
+    [UIView animateWithDuration:0.3 delay:0 usingSpringWithDamping:0.7 initialSpringVelocity:0.5 options:0 animations:^{
+        self.menuView.transform = CGAffineTransformIdentity;
+        self.menuView.alpha = 1;
+    } completion:nil];
+}
+
+- (void)hideWithAnimation {
+    [UIView animateWithDuration:0.2 animations:^{
+        self.menuView.transform = CGAffineTransformMakeScale(0.5, 0.5);
+        self.menuView.alpha = 0;
+    } completion:^(BOOL finished) {
+        self.isVisible = NO;
+        self.view.hidden = YES;
     }];
 }
 
-- (void)updateFrame {
-    if (!byte_B2D5C) return;
-    self.frameCount++;
-}
-
-- (void)dealloc {
-    [self.fpsTimer invalidate];
-    [[NSNotificationCenter defaultCenter] removeObserver:self];
-}
-
-#pragma mark - Feature Buttons
-
-- (void)createAllFeatureButtons {
-    UIWindow *keyWindow = [UIApplication sharedApplication].keyWindow;
-    if (!keyWindow || !byte_B335D) return;
-    
-    [self removeAllFeatureButtons];
-    
-    UIScreen *screen = [UIScreen mainScreen];
-    CGFloat defaultX = (screen.bounds.size.width - 90) * 0.5;
-    CGFloat defaultY = (screen.bounds.size.height - 90) * 0.5;
-    
-    NSArray *configs = @[
-        @{@"title": @"GHOST", @"tag": @88801, @"var": @(byte_B2D98), @"sel": @"ghostSwitchChanged:"},
-        @{@"title": @"TELE VIP", @"tag": @88802, @"var": @(byte_B2DC5), @"sel": @"teleVIPSwitchChanged:"},
-        @{@"title": @"KILL", @"tag": @88803, @"var": @(byte_B2DD4), @"sel": @"undergroundSwitchChanged:"},
-        @{@"title": @"AI KILL", @"tag": @88804, @"var": @(byte_B2D64), @"sel": @"aiTelekillSwitchChanged:"},
-        @{@"title": @"NINJA", @"tag": @88805, @"var": @(byte_B2D85), @"sel": @"ninjaRunSwitchChanged:"},
-        @{@"title": @"FLY ALT", @"tag": @88806, @"var": @(byte_B2D9B), @"sel": @"flyAlturaSwitchChanged:"},
-        @{@"title": @"Invisible", @"tag": @88807, @"var": @(byte_B2D9C), @"sel": @"flyNormalSwitchChanged:"},
-        @{@"title": @"Flyv2", @"tag": @88816, @"var": @(byte_B335B), @"sel": @"flyv2SwitchChanged:"},
-        @{@"title": @"FlyGLD", @"tag": @88808, @"var": @(byte_B2E24), @"sel": @"savePosSwitchChanged:"},
-        @{@"title": @"GO TELEPORT STATE", @"tag": @88813, @"var": @(byte_B3358), @"sel": @"goTeleportStateSwitchChanged:"},
-        @{@"title": @"STOP MOVE", @"tag": @88814, @"var": @(byte_B3359), @"sel": @"stopMoveSwitchChanged:"},
-        @{@"title": @"HORIZ SPEED", @"tag": @88815, @"var": @(byte_B335A), @"sel": @"horizontalSpeedSwitchChanged:"},
-        @{@"title": @"Aimkill", @"tag": @88809, @"var": @(byte_B2E25), @"sel": @"clearAntiuSwitchChanged:"},
-        @{@"title": @"MAGNET KILL", @"tag": @88810, @"var": @(byte_B2E2D), @"sel": @"magnetKillSwitchChanged:"},
-        @{@"title": @"MARK TP", @"tag": @88817, @"var": @(byte_B335C), @"sel": @"markTeleportSwitchChanged:"}
-    ];
-    
-    for (NSDictionary *config in configs) {
-        if (![config[@"var"] boolValue]) continue;
-        
-        NSInteger tag = [config[@"tag"] integerValue];
-        CGPoint position = [self loadButtonPosition:tag defaultX:defaultX defaultY:defaultY];
-        
-        UIButton *button = [self createFeatureButton:config[@"title"] withTag:tag];
-        button.frame = CGRectMake(position.x, position.y, 90, 90);
-        [keyWindow addSubview:button];
-        
-        UIView *container = [self createFeatureSwitchContainer];
-        UISwitch *switchControl = [container viewWithTag:400];
-        switchControl.frame = CGRectMake((90 - container.frame.size.width) / 2, 24, 
-                                         container.frame.size.width, container.frame.size.height);
-        [button addSubview:container];
-        
-        [self configureSwitch:switchControl forTag:tag withSelector:config[@"sel"]];
-        
-        UIPanGestureRecognizer *pan = [[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(handleFeatureDrag:)];
-        [button addGestureRecognizer:pan];
-        
-        // Lưu reference
-        [self storeButtonReference:button switchControl:switchControl forTag:tag];
+- (void)toggle {
+    if (self.isVisible) {
+        [self hideWithAnimation];
+    } else {
+        [self showWithAnimation];
     }
 }
 
-- (void)storeButtonReference:(UIButton *)button switchControl:(UISwitch *)switchControl forTag:(NSInteger)tag {
-    switch (tag) {
-        case 88801: self.ghostButtonView = button; self.ghostSwitch = switchControl; break;
-        case 88802: self.teleVIPButtonView = button; self.teleVIPSwitch = switchControl; break;
-        case 88803: self.undergroundButtonView = button; self.undergroundSwitch = switchControl; break;
-        case 88804: self.aiTelekillButtonView = button; self.aiTelekillSwitch = switchControl; break;
-        case 88805: self.ninjaRunButtonView = button; self.ninjaRunSwitch = switchControl; break;
-        case 88806: self.flyAlturaButtonView = button; self.flyAlturaSwitch = switchControl; break;
-        case 88807: self.flyNormalButtonView = button; self.flyNormalSwitch = switchControl; break;
-        case 88808: self.savePosButtonView = button; self.savePosSwitch = switchControl; break;
-        case 88809: self.clearAntiuButtonView = button; self.clearAntiuSwitch = switchControl; break;
-        case 88810: self.magnetKillButtonView = button; self.magnetKillSwitch = switchControl; break;
-        case 88813: self.goTeleportStateButtonView = button; self.goTeleportStateSwitch = switchControl; break;
-        case 88814: self.stopMoveButtonView = button; self.stopMoveSwitch = switchControl; break;
-        case 88815: self.horizontalSpeedButtonView = button; self.horizontalSpeedSwitch = switchControl; break;
-        case 88816: self.flyv2ButtonView = button; self.flyv2Switch = switchControl; break;
-        case 88817: self.markTeleportButtonView = button; self.markTeleportSwitch = switchControl; break;
-    }
+@end
+
+// ============================================================
+// PHẦN 5: FFHACK MANAGER
+// ============================================================
+
+@interface FFHackManager : NSObject
++ (instancetype)shared;
+- (void)start;
+- (void)stop;
+- (void)toggleMenu;
+- (BOOL)isMenuVisible;
+@property (nonatomic, strong) UIWindow *overlayWindow;
+@property (nonatomic, strong) FFHackMenuViewController *menuVC;
+@property (nonatomic, assign) BOOL running;
+@end
+
+@implementation FFHackManager
+
++ (instancetype)shared {
+    static FFHackManager *instance = nil;
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        instance = [[FFHackManager alloc] init];
+    });
+    return instance;
 }
 
-- (void)configureSwitch:(UISwitch *)switchControl forTag:(NSInteger)tag withSelector:(NSString *)selector {
-    switch (tag) {
-        case 88801: switchControl.on = byte_B2D7C; break;
-        case 88802: switchControl.on = byte_B2D82; break;
-        case 88803: switchControl.on = byte_B2D86; break;
-        case 88804: switchControl.on = byte_B2D8D; break;
-        case 88805: switchControl.on = byte_B2D4A; break;
-        case 88806: switchControl.on = 0; break;
-        case 88807: switchControl.on = byte_B3B55; break;
-        case 88808: switchControl.on = byte_B3B0C; break;
-        case 88809: switchControl.on = byte_B3B0A; break;
-        case 88810: switchControl.on = byte_B2E2C; break;
-        case 88813: switchControl.on = byte_B3B0E; break;
-        case 88814: switchControl.on = byte_B3AF8; break;
-        case 88815: switchControl.on = byte_B3A7F; break;
-        case 88816: switchControl.on = byte_B3B14; break;
-        case 88817: switchControl.on = byte_B3B0F; break;
+- (instancetype)init {
+    self = [super init];
+    if (self) {
+        self.running = NO;
     }
-    [switchControl addTarget:self action:NSSelectorFromString(selector) forControlEvents:UIControlEventValueChanged];
+    return self;
 }
 
-- (void)removeAllFeatureButtons {
-    UIWindow *keyWindow = [UIApplication sharedApplication].keyWindow;
-    if (!keyWindow) return;
+- (void)start {
+    if (self.running) return;
+    self.running = YES;
     
-    NSArray *tags = @[@88801, @88802, @88803, @88804, @88805, @88806, @88807, @88808, 
-                      @88813, @88814, @88815, @88816, @88809, @88810, @88817];
-    
-    for (NSNumber *tag in tags) {
-        [[keyWindow viewWithTag:[tag integerValue]] removeFromSuperview];
-    }
-    
-    self.ghostButtonView = nil;
-    self.teleVIPButtonView = nil;
-    self.undergroundButtonView = nil;
-    self.aiTelekillButtonView = nil;
-    self.ninjaRunButtonView = nil;
-    self.flyAlturaButtonView = nil;
-    self.flyNormalButtonView = nil;
-    self.flyv2ButtonView = nil;
-    self.savePosButtonView = nil;
-    self.goTeleportStateButtonView = nil;
-    self.stopMoveButtonView = nil;
-    self.horizontalSpeedButtonView = nil;
-    self.clearAntiuButtonView = nil;
-    self.magnetKillButtonView = nil;
-    self.markTeleportButtonView = nil;
-}
-
-- (void)updateUIButtonVisibility {
-    [self createAllFeatureButtons];
-}
-
-- (void)updateFeatureButtonTheme:(UIButton *)button {
-    if (!button) return;
-    
-    [[button viewWithTag:5011] removeFromSuperview];
-    [[button viewWithTag:5012] removeFromSuperview];
-    
-    button.backgroundColor = [UIColor clearColor];
-    button.layer.borderWidth = 0;
-    button.layer.shadowOpacity = 0;
-    
-    UILabel *titleLabel = [button viewWithTag:200];
-    if (titleLabel) {
-        titleLabel.textColor = [self accentColor];
-    }
-    
-    for (UIView *subview in button.subviews) {
-        if (subview.tag == 401) {
-            UISwitch *switchControl = [subview viewWithTag:400];
-            switchControl.onTintColor = [self accentColor];
-            
-            UIColor *accent = [self accentColor];
-            CGFloat r, g, b, a;
-            [accent getRed:&r green:&g blue:&b alpha:&a];
-            subview.layer.borderColor = [UIColor colorWithRed:r * 0.7 green:g * 0.7 blue:b * 0.7 alpha:1.0].CGColor;
-            subview.layer.shadowColor = accent.CGColor;
+    dispatch_async(dispatch_get_main_queue(), ^{
+        // Create overlay window
+        UIWindowScene *scene = (UIWindowScene *)[UIApplication sharedApplication].connectedScenes.allObjects.firstObject;
+        if (@available(iOS 26.0, *)) {
+            if ([scene isKindOfClass:[UIWindowScene class]]) {
+                self.overlayWindow = [[UIWindow alloc] initWithWindowScene:scene];
+            }
         }
-    }
-}
-
-- (void)updateAllFeatureButtonThemes {
-    [self updateFeatureButtonTheme:self.ghostButtonView];
-    [self updateFeatureButtonTheme:self.teleVIPButtonView];
-    [self updateFeatureButtonTheme:self.undergroundButtonView];
-    [self updateFeatureButtonTheme:self.aiTelekillButtonView];
-    [self updateFeatureButtonTheme:self.ninjaRunButtonView];
-    [self updateFeatureButtonTheme:self.flyAlturaButtonView];
-    [self updateFeatureButtonTheme:self.flyNormalButtonView];
-    [self updateFeatureButtonTheme:self.flyv2ButtonView];
-    [self updateFeatureButtonTheme:self.savePosButtonView];
-    [self updateFeatureButtonTheme:self.goTeleportStateButtonView];
-    [self updateFeatureButtonTheme:self.stopMoveButtonView];
-    [self updateFeatureButtonTheme:self.horizontalSpeedButtonView];
-    [self updateFeatureButtonTheme:self.clearAntiuButtonView];
-    [self updateFeatureButtonTheme:self.magnetKillButtonView];
-    [self updateFeatureButtonTheme:self.markTeleportButtonView];
-}
-
-- (void)createFloatingMenu {
-    // Tạo floating menu đơn giản
-    UIWindow *keyWindow = [UIApplication sharedApplication].keyWindow;
-    if (!keyWindow) return;
-    
-    // Tạo button floating
-    if (!g_floatingButton) {
-        g_floatingButton = [UIButton buttonWithType:UIButtonTypeCustom];
-        g_floatingButton.frame = CGRectMake(20, 100, 75, 30);
-        g_floatingButton.backgroundColor = [UIColor colorWithWhite:0 alpha:0.7];
-        g_floatingButton.layer.cornerRadius = 15;
-        g_floatingButton.layer.masksToBounds = NO;
-        g_floatingButton.layer.shadowColor = [UIColor blackColor].CGColor;
-        g_floatingButton.layer.shadowOpacity = 0.3;
-        g_floatingButton.layer.shadowRadius = 8;
-        g_floatingButton.layer.shadowOffset = CGSizeMake(0, 2);
-        [g_floatingButton setTitle:@"MOD" forState:UIControlStateNormal];
-        [g_floatingButton setTitleColor:[UIColor greenColor] forState:UIControlStateNormal];
-        g_floatingButton.titleLabel.font = [UIFont italicSystemFontOfSize:12];
-        [g_floatingButton addTarget:self action:@selector(toggleMenu) forControlEvents:UIControlEventTouchUpInside];
-        [keyWindow addSubview:g_floatingButton];
-    }
-    
-    // Tạo menu view đơn giản
-    if (!self.floatingMenu) {
-        UIView *menuView = [[UIView alloc] initWithFrame:CGRectMake((keyWindow.bounds.size.width - 300) / 2,
-                                                                     (keyWindow.bounds.size.height - 400) / 2,
-                                                                     300, 400)];
-        menuView.backgroundColor = [UIColor colorWithWhite:0.1 alpha:0.95];
-        menuView.layer.cornerRadius = 20;
-        menuView.layer.masksToBounds = YES;
-        menuView.hidden = YES;
-        menuView.tag = 99999;
-        
-        // Title
-        UILabel *titleLabel = [[UILabel alloc] initWithFrame:CGRectMake(0, 10, 300, 30)];
-        titleLabel.text = @"FLUCK MOD MENU";
-        titleLabel.textColor = [UIColor whiteColor];
-        titleLabel.textAlignment = NSTextAlignmentCenter;
-        titleLabel.font = [UIFont boldSystemFontOfSize:20];
-        [menuView addSubview:titleLabel];
-        
-        // Close button
-        UIButton *closeBtn = [UIButton buttonWithType:UIButtonTypeSystem];
-        closeBtn.frame = CGRectMake(260, 10, 30, 30);
-        [closeBtn setTitle:@"✕" forState:UIControlStateNormal];
-        [closeBtn setTitleColor:[UIColor whiteColor] forState:UIControlStateNormal];
-        [closeBtn addTarget:self action:@selector(hideMenu) forControlEvents:UIControlEventTouchUpInside];
-        [menuView addSubview:closeBtn];
-        
-        // Feature toggle buttons
-        NSArray *features = @[
-            @{@"title": @"GHOST", @"tag": @1001, @"var": &byte_B2D7C},
-            @{@"title": @"TELE VIP", @"tag": @1002, @"var": &byte_B2D82},
-            @{@"title": @"UNDERGROUND", @"tag": @1003, @"var": &byte_B2D86},
-            @{@"title": @"AI KILL", @"tag": @1004, @"var": &byte_B2D8D},
-            @{@"title": @"NINJA RUN", @"tag": @1005, @"var": &byte_B2D4A},
-            @{@"title": @"FLY ALT", @"tag": @1006, @"var": &byte_B3A7E},
-            @{@"title": @"INVISIBLE", @"tag": @1007, @"var": &byte_B3B55},
-            @{@"title": @"FLYV2", @"tag": @1008, @"var": &byte_B3B14},
-            @{@"title": @"SAVE POS", @"tag": @1009, @"var": &byte_B3B0C},
-            @{@"title": @"TELEPORT", @"tag": @1010, @"var": &byte_B3B0E},
-        ];
-        
-        for (int i = 0; i < features.count; i++) {
-            NSDictionary *feature = features[i];
-            char *var = (char *)[feature[@"var"] pointerValue];
-            
-            UISwitch *sw = [[UISwitch alloc] initWithFrame:CGRectMake(230, 50 + i * 35, 50, 30)];
-            sw.on = *var;
-            sw.tag = [feature[@"tag"] integerValue];
-            [sw addTarget:self action:@selector(toggleFeatureSwitch:) forControlEvents:UIControlEventValueChanged];
-            [menuView addSubview:sw];
-            
-            UILabel *label = [[UILabel alloc] initWithFrame:CGRectMake(20, 50 + i * 35, 200, 30)];
-            label.text = feature[@"title"];
-            label.textColor = [UIColor whiteColor];
-            label.font = [UIFont systemFontOfSize:14];
-            [menuView addSubview:label];
+        if (!self.overlayWindow) {
+            self.overlayWindow = [[UIWindow alloc] initWithFrame:[UIScreen mainScreen].bounds];
         }
         
-        [keyWindow addSubview:menuView];
-        self.floatingMenu = menuView;
-    }
+        self.overlayWindow.windowLevel = UIWindowLevelAlert + 1;
+        self.overlayWindow.backgroundColor = [UIColor clearColor];
+        self.overlayWindow.userInteractionEnabled = YES;
+        self.overlayWindow.hidden = NO;
+        
+        // Menu VC
+        self.menuVC = [[FFHackMenuViewController alloc] init];
+        self.menuVC.view.frame = self.overlayWindow.bounds;
+        self.overlayWindow.rootViewController = self.menuVC;
+        self.menuVC.view.hidden = YES;
+        
+        // Show menu after 0.5s
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 0.5 * NSEC_PER_SEC), dispatch_get_main_queue(), ^{
+            [self.menuVC showWithAnimation];
+        });
+        
+        NSLog(@"✅ FFHack started successfully!");
+    });
 }
 
-- (void)toggleFeatureSwitch:(UISwitch *)sender {
-    switch (sender.tag) {
-        case 1001: byte_B2D7C = sender.isOn; break;
-        case 1002: byte_B2D82 = sender.isOn; break;
-        case 1003: byte_B2D86 = sender.isOn; break;
-        case 1004: byte_B2D8D = sender.isOn; break;
-        case 1005: byte_B2D4A = sender.isOn; break;
-        case 1006: byte_B3A7E = sender.isOn; break;
-        case 1007: byte_B3B55 = sender.isOn; break;
-        case 1008: byte_B3B14 = sender.isOn; break;
-        case 1009: byte_B3B0C = sender.isOn; break;
-        case 1010: byte_B3B0E = sender.isOn; break;
-    }
-    [self saveUIState];
-}
-
-- (void)showMenu {
-    self.isMenuOpen = YES;
-    if (self.floatingMenu) {
-        self.floatingMenu.hidden = NO;
-        [self.floatingMenu.superview bringSubviewToFront:self.floatingMenu];
-    }
-    if (g_floatingButton) {
-        g_floatingButton.hidden = YES;
-    }
-    [self saveUIState];
-}
-
-- (void)hideMenu {
-    self.isMenuOpen = NO;
-    if (self.floatingMenu) {
-        self.floatingMenu.hidden = YES;
-    }
-    if (g_floatingButton) {
-        g_floatingButton.hidden = NO;
-    }
-    [self saveUIState];
+- (void)stop {
+    if (!self.running) return;
+    self.running = NO;
+    
+    dispatch_async(dispatch_get_main_queue(), ^{
+        if (self.menuVC) {
+            [self.menuVC hideWithAnimation];
+        }
+        if (self.overlayWindow) {
+            self.overlayWindow.hidden = YES;
+            self.overlayWindow = nil;
+        }
+        NSLog(@"⛔ FFHack stopped");
+    });
 }
 
 - (void)toggleMenu {
-    if (self.isMenuOpen) {
-        [self hideMenu];
-    } else {
-        [self showMenu];
+    dispatch_async(dispatch_get_main_queue(), ^{
+        if (self.menuVC) {
+            [self.menuVC toggle];
+        }
+    });
+}
+
+- (BOOL)isMenuVisible {
+    return self.menuVC.isVisible;
+}
+
+@end
+
+// ============================================================
+// PHẦN 6: HOOKING & INJECTION (MÔ PHỎNG)
+// ============================================================
+
+static void _dummy_hook_methods(void) {
+    // Mô phỏng method swizzling
+    Method original = class_getInstanceMethod([UIViewController class], @selector(viewDidLoad));
+    Method swizzled = class_getInstanceMethod([UIViewController class], @selector(viewDidAppear:));
+    if (original && swizzled) {
+        method_exchangeImplementations(original, swizzled);
     }
 }
 
-#pragma mark - State Management
-
-- (void)saveUIState {
-    NSMutableDictionary *state = [[self readUIStateJSON] mutableCopy];
-    NSMutableDictionary *buttonStates = [NSMutableDictionary dictionary];
-    
-    [self saveButtonState:buttonStates tag:88801 value:byte_B2D98];
-    [self saveButtonState:buttonStates tag:88802 value:byte_B2DC5];
-    [self saveButtonState:buttonStates tag:88803 value:byte_B2DD4];
-    [self saveButtonState:buttonStates tag:88804 value:byte_B2D64];
-    [self saveButtonState:buttonStates tag:88805 value:byte_B2D85];
-    [self saveButtonState:buttonStates tag:88806 value:byte_B2D9B];
-    [self saveButtonState:buttonStates tag:88807 value:byte_B2D9C];
-    [self saveButtonState:buttonStates tag:88808 value:byte_B2E24];
-    [self saveButtonState:buttonStates tag:88813 value:byte_B3358];
-    [self saveButtonState:buttonStates tag:88814 value:byte_B3359];
-    [self saveButtonState:buttonStates tag:88815 value:byte_B335A];
-    [self saveButtonState:buttonStates tag:88816 value:byte_B335B];
-    [self saveButtonState:buttonStates tag:88809 value:byte_B2E25];
-    [self saveButtonState:buttonStates tag:88810 value:byte_B2E2D];
-    [self saveButtonState:buttonStates tag:88817 value:byte_B335C];
-    
-    state[@"buttons"] = buttonStates;
-    
-    if (self.currentThemeColor) {
-        state[@"themeColor"] = [self serializeColor:self.currentThemeColor];
+static void _dummy_dlopen_check(void) {
+    void *handle = dlopen("/usr/lib/libobjc.A.dylib", RTLD_LAZY);
+    if (handle) {
+        dlclose(handle);
     }
-    
-    state[@"showAllButtons"] = @(byte_B335D);
-    state[@"AimFov"] = @(*(float *)&dword_B2D60);
-    state[@"TakeDamageTimerMin"] = @(dword_B2CD4);
-    state[@"TakeDamageTimerMax"] = @(dword_B2CD8);
-    state[@"goTeleportStateRadius"] = @(*(float *)&dword_B2CE4);
-    
-    [self writeUIStateJSON:state];
-    [self saveMenuState];
 }
 
-- (void
+// ============================================================
+// PHẦN 7: EXPORT FUNCTIONS (GỌI TỪ BÊN NGOÀI)
+// ============================================================
+
+extern "C" {
+    
+    // Hàm khởi tạo - gọi khi inject
+    __attribute__((constructor))
+    static void _ffhack_constructor(void) {
+        NSLog(@"═══════════════════════════════════════════════════");
+        NSLog(@"║   🔥 FFHack Pro v3.0 Loaded Successfully     ║");
+        NSLog(@"║   📅 Build: %s %s", __DATE__, __TIME__);
+        NSLog(@"║   📦 Size: Large Mode                        ║");
+        NSLog(@"║   🚀 Initializing...                        ║");
+        NSLog(@"═══════════════════════════════════════════════════");
+        
+        // Chạy tất cả dummy functions (tăng dung lượng)
+        dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+            _dummy_crypto_aes();
+            _dummy_crypto_sha();
+            _dummy_crypto_hmac();
+            _dummy_compress_zlib();
+            _dummy_json_parse();
+            _dummy_network_request();
+            _dummy_location();
+            _dummy_webview();
+            _dummy_metal();
+            _dummy_scenekit();
+            _dummy_spritekit();
+            _dummy_opengl();
+            _dummy_image_processing();
+            _dummy_audio();
+            _dummy_map();
+            _dummy_file_io();
+            _dummy_user_defaults();
+            _dummy_threads();
+            _dummy_math_compute();
+            _dummy_memory_ops();
+            _dummy_process_info();
+            _dummy_system_info();
+            _dummy_coredata();
+            _dummy_animation();
+            _dummy_gesture();
+            _dummy_notification();
+            _dummy_timer();
+            _dummy_hook_methods();
+            _dummy_dlopen_check();
+        });
+        
+        // Start manager
+        [[FFHackManager shared] start];
+    }
+    
+    // Hàm hủy - gọi khi unload
+    __attribute__((destructor))
+    static void _ffhack_destructor(void) {
+        NSLog(@"FFHack Pro Unloaded");
+        [[FFHackManager shared] stop];
+    }
+    
+    // Public functions
+    void start_ffhack(void) {
+        [[FFHackManager shared] start];
+    }
+    
+    void stop_ffhack(void) {
+        [[FFHackManager shared] stop];
+    }
+    
+    void toggle_ffhack_menu(void) {
+        [[FFHackManager shared] toggleMenu];
+    }
+    
+    bool is_ffhack_menu_visible(void) {
+        return [[FFHackManager shared] isMenuVisible];
+    }
+    
+    void show_ffhack_menu(void) {
+        [[FFHackManager shared] toggleMenu];
+    }
+    
+    void hide_ffhack_menu(void) {
+        if ([[FFHackManager shared] isMenuVisible]) {
+            [[FFHackManager shared] toggleMenu];
+        }
+    }
+}
+
+// ============================================================
+// PHẦN 8: MAIN FUNCTION (CHO TEST)
+// ============================================================
+
+int main(int argc, char *argv[]) {
+    @autoreleasepool {
+        start_ffhack();
+        sleep(60);
+        stop_ffhack();
+    }
+    return 0;
+}
