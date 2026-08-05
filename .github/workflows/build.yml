@@ -2,18 +2,55 @@ name: Build iOS Dylib
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
   workflow_dispatch:
 
 jobs:
   build:
     runs-on: macos-latest
+    
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: List all files (debug)
+        run: |
+          echo "Current directory:"
+          pwd
+          echo "All files:"
+          ls -la
+          echo "Searching for .mm files:"
+          find . -name "*.mm"
+
       - name: Compile ffhack
         run: |
-          clang++ -dynamiclib -arch arm64 -isysroot $(xcrun --sdk iphoneos --show-sdk-path) \
-            -framework Foundation -framework UIKit -framework CoreGraphics -framework QuartzCore \
-            -O2 -o libffhack.dylib ffhack_full.mm
+          # Tìm file .mm tự động
+          MM_FILE=$(find . -name "ffhack_full.mm" | head -1)
+          
+          if [ -z "$MM_FILE" ]; then
+            echo "Error: ffhack_full.mm not found!"
+            exit 1
+          fi
+          
+          echo "Found file: $MM_FILE"
+          
+          # Biên dịch
+          clang++ -dynamiclib -arch arm64 \
+            -isysroot $(xcrun --sdk iphoneos --show-sdk-path) \
+            -framework Foundation \
+            -framework UIKit \
+            -framework CoreGraphics \
+            -framework QuartzCore \
+            -O2 \
+            -o libffhack.dylib \
+            "$MM_FILE"
+          
+          echo "Build successful! Output: libffhack.dylib"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: libffhack
+          path: libffhack.dylib
