@@ -1,53 +1,26 @@
-name: Build iOS Dylib
+# Install iOS SDK (if not already)
+# Download iOS SDK from Apple or use existing
 
-on:
-  push:
-    branches: [ main, master ]
-  workflow_dispatch:
+# Build dylib
+clang++ -dynamiclib \
+    -arch arm64 \
+    -arch arm64e \
+    -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk \
+    -framework UIKit \
+    -framework Foundation \
+    -framework CoreGraphics \
+    -framework QuartzCore \
+    -framework CoreFoundation \
+    -framework GraphicsServices \
+    -framework BackBoardServices \
+    -lobjc \
+    -O2 \
+    -flto \
+    -fobjc-arc \
+    -miphoneos-version-min=14.0 \
+    -o fluck.dylib \
+    fluck.mm
 
-jobs:
-  build:
-    runs-on: macos-latest
-    
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Compile ffhack
-        run: |
-          clang++ -dynamiclib -arch arm64 \
-            -isysroot $(xcrun --sdk iphoneos --show-sdk-path) \
-            -framework Foundation \
-            -framework UIKit \
-            -framework CoreGraphics \
-            -framework QuartzCore \
-            -framework AVFoundation \
-            -framework CoreLocation \
-            -framework MapKit \
-            -framework WebKit \
-            -framework SceneKit \
-            -framework SpriteKit \
-            -framework Metal \
-            -framework CoreImage \
-            -framework Security \
-            -framework SystemConfiguration \
-            -Oz \
-            -o libffhack.dylib \
-            ffhack.mm \
-            -lz \
-            -lc++ \
-            -ObjC
-
-      - name: Show file info
-        run: |
-          echo "📦 File size:"
-          ls -lh libffhack.dylib
-          echo ""
-          echo "🔍 File info:"
-          file libffhack.dylib
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: libffhack
-          path: libffhack.dylib
+# Check if build succeeded
+file fluck.dylib
+# Should output: fluck.dylib: Mach-O 64-bit dynamically linked shared library arm64
