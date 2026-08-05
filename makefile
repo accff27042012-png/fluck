@@ -1,5 +1,7 @@
 ARCHS = arm64 arm64e
-TARGET = iphone:clang:14.5:14.0
+
+# Sử dụng SDK mặc định của hệ thống
+TARGET = iphone:latest:14.0
 
 include $(THEOS)/makefiles/common.mk
 
