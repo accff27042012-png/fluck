@@ -1,14 +1,165 @@
 // ============================================================================
-// ffhack.mm - Mod Menu Hack
+// ffhack.mm - Mod Menu Hack hoàn chỉnh
 // ============================================================================
 
 #import <Foundation/Foundation.h>
 #import <UIKit/UIKit.h>
 #import <objc/runtime.h>
 #import <sys/sysctl.h>
+#import <dlfcn.h>
+#import <mach-o/dyld.h>
 
 // ============================================================================
-// GLOBAL VARIABLES (từ decompilation)
+// ĐỊNH NGHĨA CLASS ModMenuViewController
+// ============================================================================
+
+@interface ModMenuViewController : UIViewController
+
+// Properties
+@property (nonatomic, strong) UIColor *currentThemeColor;
+@property (nonatomic, strong) id floatingMenu;
+@property (nonatomic, strong) NSArray *menuTabs;
+@property (nonatomic, assign) BOOL isMenuOpen;
+@property (nonatomic, assign) BOOL isBackendStarted;
+
+// Feature buttons
+@property (nonatomic, strong) UIButton *ghostButtonView;
+@property (nonatomic, strong) UISwitch *ghostSwitch;
+@property (nonatomic, strong) UIButton *teleVIPButtonView;
+@property (nonatomic, strong) UISwitch *teleVIPSwitch;
+@property (nonatomic, strong) UIButton *undergroundButtonView;
+@property (nonatomic, strong) UISwitch *undergroundSwitch;
+@property (nonatomic, strong) UIButton *aiTelekillButtonView;
+@property (nonatomic, strong) UISwitch *aiTelekillSwitch;
+@property (nonatomic, strong) UIButton *ninjaRunButtonView;
+@property (nonatomic, strong) UISwitch *ninjaRunSwitch;
+@property (nonatomic, strong) UIButton *flyAlturaButtonView;
+@property (nonatomic, strong) UISwitch *flyAlturaSwitch;
+@property (nonatomic, strong) UIButton *flyNormalButtonView;
+@property (nonatomic, strong) UISwitch *flyNormalSwitch;
+@property (nonatomic, strong) UIButton *flyv2ButtonView;
+@property (nonatomic, strong) UISwitch *flyv2Switch;
+@property (nonatomic, strong) UIButton *savePosButtonView;
+@property (nonatomic, strong) UISwitch *savePosSwitch;
+@property (nonatomic, strong) UIButton *goTeleportStateButtonView;
+@property (nonatomic, strong) UISwitch *goTeleportStateSwitch;
+@property (nonatomic, strong) UIButton *stopMoveButtonView;
+@property (nonatomic, strong) UISwitch *stopMoveSwitch;
+@property (nonatomic, strong) UIButton *horizontalSpeedButtonView;
+@property (nonatomic, strong) UISwitch *horizontalSpeedSwitch;
+@property (nonatomic, strong) UIButton *clearAntiuButtonView;
+@property (nonatomic, strong) UISwitch *clearAntiuSwitch;
+@property (nonatomic, strong) UIButton *magnetKillButtonView;
+@property (nonatomic, strong) UISwitch *magnetKillSwitch;
+@property (nonatomic, strong) UIButton *markTeleportButtonView;
+@property (nonatomic, strong) UISwitch *markTeleportSwitch;
+
+// FPS
+@property (nonatomic, strong) NSTimer *fpsTimer;
+@property (nonatomic, assign) NSInteger frameCount;
+@property (nonatomic, assign) double currentFPS;
+
+// UI Elements
+@property (nonatomic, strong) UISlider *slider;
+@property (nonatomic, strong) UISwitch *firstSwitch;
+@property (nonatomic, strong) UISwitch *secondSwitch;
+@property (nonatomic, strong) UIButton *submitButton;
+
+// Methods
+- (void)setupBackend;
+- (void)setupUI;
+- (void)initializeMenu;
+- (void)viewDidLoad;
+- (void)setupDisplayLink;
+- (void)startFPSTimer;
+- (void)updateFrame;
+- (void)dealloc;
+
+- (void)createAllFeatureButtons;
+- (void)removeAllFeatureButtons;
+- (void)updateUIButtonVisibility;
+- (void)updateFeatureButtonTheme:(UIButton *)button;
+- (void)updateAllFeatureButtonThemes;
+- (void)createFloatingMenu;
+- (void)showMenu;
+- (void)hideMenu;
+- (void)toggleMenu;
+
+- (void)saveUIState;
+- (void)loadUIState;
+- (void)saveMenuState;
+- (void)loadMenuState;
+- (id)uiStateJSONPath;
+- (id)readUIStateJSON;
+- (void)writeUIStateJSON:(id)data;
+- (id)serializeColor:(UIColor *)color;
+- (id)deserializeColor:(id)colorData fallback:(UIColor *)fallback;
+- (UIColor *)loadSavedThemeColor;
+
+- (void)ghostSwitchChanged:(UISwitch *)sender;
+- (void)teleVIPSwitchChanged:(UISwitch *)sender;
+- (void)undergroundSwitchChanged:(UISwitch *)sender;
+- (void)aiTelekillSwitchChanged:(UISwitch *)sender;
+- (void)ninjaRunSwitchChanged:(UISwitch *)sender;
+- (void)flyAlturaSwitchChanged:(UISwitch *)sender;
+- (void)flyNormalSwitchChanged:(UISwitch *)sender;
+- (void)flyv2SwitchChanged:(UISwitch *)sender;
+- (void)savePosSwitchChanged:(UISwitch *)sender;
+- (void)goTeleportStateSwitchChanged:(UISwitch *)sender;
+- (void)stopMoveSwitchChanged:(UISwitch *)sender;
+- (void)horizontalSpeedSwitchChanged:(UISwitch *)sender;
+- (void)clearAntiuSwitchChanged:(UISwitch *)sender;
+- (void)magnetKillSwitchChanged:(UISwitch *)sender;
+- (void)markTeleportSwitchChanged:(UISwitch *)sender;
+
+- (void)toggleShowGhostUI:(UISwitch *)sender;
+- (void)toggleShowTeleVIPUI:(UISwitch *)sender;
+- (void)toggleShowUndergroundUI:(UISwitch *)sender;
+- (void)toggleShowAITelekillUI:(UISwitch *)sender;
+- (void)toggleShowNinjaRunUI:(UISwitch *)sender;
+- (void)toggleShowFlyAlturaUI:(UISwitch *)sender;
+- (void)toggleUIFlyNormal:(UISwitch *)sender;
+- (void)toggleShowFlyv2UI:(UISwitch *)sender;
+- (void)toggleShowSavePosUI:(UISwitch *)sender;
+- (void)toggleShowGoTeleportStateUI:(UISwitch *)sender;
+- (void)toggleShowStopMoveUI:(UISwitch *)sender;
+- (void)toggleShowHorizontalSpeedUI:(UISwitch *)sender;
+- (void)toggleShowClearAntiuUI:(UISwitch *)sender;
+- (void)toggleShowMagnetKillUI:(UISwitch *)sender;
+- (void)toggleShowMarkTeleportUI:(UISwitch *)sender;
+
+- (void)protectAllFeatureButtons;
+- (void)unprotectAllFeatureButtons;
+- (void)screenCaptureStatusChanged:(NSNotification *)notification;
+- (void)toggleStreamMode:(UISwitch *)sender;
+
+- (void)addMasterToggleGesture;
+- (void)toggleMasterVisibility:(UITapGestureRecognizer *)gesture;
+- (void)handleFeatureDrag:(UIPanGestureRecognizer *)gesture;
+
+- (id)createFeatureButton:(NSString *)title withTag:(NSInteger)tag;
+- (id)createFeatureSwitchContainer;
+- (CGPoint)loadButtonPosition:(NSInteger)tag defaultX:(CGFloat)defaultX defaultY:(CGFloat)defaultY;
+- (void)saveButtonPosition:(UIButton *)button;
+- (void)setAllButtonsVisible:(BOOL)visible;
+
+- (UIColor *)accentColor;
+- (UIColor *)textColor;
+- (UIColor *)glowColor;
+- (UIColor *)pillColor;
+- (UIColor *)checkboxOffColor;
+
+- (NSString *)settingsFilePath;
+- (void)loadResolutionAndLineOriginFromSettingsFile;
+
+- (NSArray *)buildMenuTabs;
+
++ (void)toggleMenuFromFloatingButton;
+
+@end
+
+// ============================================================================
+// GLOBAL VARIABLES
 // ============================================================================
 
 // Feature enable/disable
@@ -69,18 +220,6 @@ static char byte_B2D99 = 0;
 static char byte_B2D7A = 0;
 static char byte_B2D7F = 0;
 static char byte_B3B73 = 0;
-static char byte_B3A83 = 0;
-static char byte_B3B12 = 0;
-static char byte_B3B54 = 0;
-static char byte_B3AF2 = 0;
-static char byte_B3A81 = 0;
-static char byte_B3A82 = 0;
-static char byte_B2E1F = 0;
-static char byte_B3AF6 = 0;
-static char byte_B3AF7 = 0;
-static char byte_B3AF4 = 0;
-static char byte_B2D4B = 0;
-static char byte_B2D4C = 0;
 
 // Integer settings
 static int dword_B2CD4 = 5;
@@ -100,133 +239,27 @@ static char byte_B2CCC = 0;
 static int dword_B39D4 = 0;
 static int dword_B39D8 = 0;
 
-// Protection
-static char byte_B3B72 = 0;
+static UIWindow *g_keyWindow = nil;
+static UIButton *g_floatingButton = nil;
+static ModMenuViewController *g_modMenuVC = nil;
 
 // ============================================================================
-// FORWARD DECLARATION - Khai báo class
-// ============================================================================
-
-@class ModMenuViewController;
-@class _F1oatM3nuV;
-
-// ============================================================================
-// CATEGORY INTERFACE - Khai báo các method
+// CATEGORY INTERFACE
 // ============================================================================
 
 @interface ModMenuViewController (FFHack)
-
-// Lifecycle
-- (void)setupBackend;
-- (void)setupUI;
-- (void)initializeMenu;
-- (void)viewDidLoad;
-- (void)setupDisplayLink;
-- (void)startFPSTimer;
-- (void)updateFrame;
-- (void)dealloc;
-
-// Feature Buttons
-- (void)createAllFeatureButtons;
-- (void)removeAllFeatureButtons;
-- (void)updateUIButtonVisibility;
-- (void)updateFeatureButtonTheme:(UIButton *)button;
-- (void)updateAllFeatureButtonThemes;
-- (void)createFloatingMenu;
-- (void)showMenu;
-- (void)hideMenu;
-- (void)toggleMenu;
-
-// State Management
-- (void)saveUIState;
-- (void)loadUIState;
-- (void)saveMenuState;
-- (void)loadMenuState;
-- (id)uiStateJSONPath;
-- (id)readUIStateJSON;
-- (void)writeUIStateJSON:(id)data;
-- (id)serializeColor:(UIColor *)color;
-- (id)deserializeColor:(id)colorData fallback:(UIColor *)fallback;
-- (UIColor *)loadSavedThemeColor;
-
-// Feature Actions
-- (void)ghostSwitchChanged:(UISwitch *)sender;
-- (void)teleVIPSwitchChanged:(UISwitch *)sender;
-- (void)undergroundSwitchChanged:(UISwitch *)sender;
-- (void)aiTelekillSwitchChanged:(UISwitch *)sender;
-- (void)ninjaRunSwitchChanged:(UISwitch *)sender;
-- (void)flyAlturaSwitchChanged:(UISwitch *)sender;
-- (void)flyNormalSwitchChanged:(UISwitch *)sender;
-- (void)flyv2SwitchChanged:(UISwitch *)sender;
-- (void)savePosSwitchChanged:(UISwitch *)sender;
-- (void)goTeleportStateSwitchChanged:(UISwitch *)sender;
-- (void)stopMoveSwitchChanged:(UISwitch *)sender;
-- (void)horizontalSpeedSwitchChanged:(UISwitch *)sender;
-- (void)clearAntiuSwitchChanged:(UISwitch *)sender;
-- (void)magnetKillSwitchChanged:(UISwitch *)sender;
-- (void)markTeleportSwitchChanged:(UISwitch *)sender;
-
-// Toggle Visibility
-- (void)toggleShowGhostUI:(UISwitch *)sender;
-- (void)toggleShowTeleVIPUI:(UISwitch *)sender;
-- (void)toggleShowUndergroundUI:(UISwitch *)sender;
-- (void)toggleShowAITelekillUI:(UISwitch *)sender;
-- (void)toggleShowNinjaRunUI:(UISwitch *)sender;
-- (void)toggleShowFlyAlturaUI:(UISwitch *)sender;
-- (void)toggleUIFlyNormal:(UISwitch *)sender;
-- (void)toggleShowFlyv2UI:(UISwitch *)sender;
-- (void)toggleShowSavePosUI:(UISwitch *)sender;
-- (void)toggleShowGoTeleportStateUI:(UISwitch *)sender;
-- (void)toggleShowStopMoveUI:(UISwitch *)sender;
-- (void)toggleShowHorizontalSpeedUI:(UISwitch *)sender;
-- (void)toggleShowClearAntiuUI:(UISwitch *)sender;
-- (void)toggleShowMagnetKillUI:(UISwitch *)sender;
-- (void)toggleShowMarkTeleportUI:(UISwitch *)sender;
-
-// Protection
-- (void)protectAllFeatureButtons;
-- (void)unprotectAllFeatureButtons;
-- (void)screenCaptureStatusChanged:(NSNotification *)notification;
-- (void)toggleStreamMode:(UISwitch *)sender;
-
-// Gestures
-- (void)addMasterToggleGesture;
-- (void)toggleMasterVisibility:(UITapGestureRecognizer *)gesture;
-- (void)handleFeatureDrag:(UIPanGestureRecognizer *)gesture;
-
-// Button Helpers
-- (id)createFeatureButton:(NSString *)title withTag:(NSInteger)tag;
-- (id)createFeatureSwitchContainer;
-- (CGPoint)loadButtonPosition:(NSInteger)tag defaultX:(CGFloat)defaultX defaultY:(CGFloat)defaultY;
-- (void)saveButtonPosition:(UIButton *)button;
-- (void)setAllButtonsVisible:(BOOL)visible;
-
-// Theme
-- (UIColor *)accentColor;
-- (UIColor *)textColor;
-- (UIColor *)glowColor;
-- (UIColor *)pillColor;
-- (UIColor *)checkboxOffColor;
-
-// Settings
-- (NSString *)settingsFilePath;
-- (void)loadResolutionAndLineOriginFromSettingsFile;
-
-// Menu Building
-- (NSArray *)buildMenuTabs;
-
-// Class Methods
-+ (void)toggleMenuFromFloatingButton;
-
+- (void)configureSwitch:(UISwitch *)switchControl forTag:(NSInteger)tag withSelector:(NSString *)selector;
+- (void)saveButtonState:(NSMutableDictionary *)dict tag:(NSInteger)tag value:(BOOL)value;
+- (BOOL)loadButtonState:(NSDictionary *)buttons tag:(NSInteger)tag defaultValue:(BOOL)defaultValue;
 @end
 
 // ============================================================================
-// CATEGORY IMPLEMENTATION - Code của các method
+// CATEGORY IMPLEMENTATION
 // ============================================================================
 
 @implementation ModMenuViewController (FFHack)
 
-#pragma mark - Lifecycle Methods
+#pragma mark - Lifecycle
 
 - (void)setupBackend {
     if (!self.isBackendStarted) {
@@ -364,6 +397,7 @@ static char byte_B3B72 = 0;
         
         UIButton *button = [self createFeatureButton:config[@"title"] withTag:tag];
         button.frame = CGRectMake(position.x, position.y, 90, 90);
+        [keyWindow addSubview:button];
         
         UIView *container = [self createFeatureSwitchContainer];
         UISwitch *switchControl = [container viewWithTag:400];
@@ -375,103 +409,51 @@ static char byte_B3B72 = 0;
         
         UIPanGestureRecognizer *pan = [[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(handleFeatureDrag:)];
         [button addGestureRecognizer:pan];
-        [keyWindow addSubview:button];
+        
+        // Lưu reference
+        [self storeButtonReference:button switchControl:switchControl forTag:tag];
+    }
+}
+
+- (void)storeButtonReference:(UIButton *)button switchControl:(UISwitch *)switchControl forTag:(NSInteger)tag {
+    switch (tag) {
+        case 88801: self.ghostButtonView = button; self.ghostSwitch = switchControl; break;
+        case 88802: self.teleVIPButtonView = button; self.teleVIPSwitch = switchControl; break;
+        case 88803: self.undergroundButtonView = button; self.undergroundSwitch = switchControl; break;
+        case 88804: self.aiTelekillButtonView = button; self.aiTelekillSwitch = switchControl; break;
+        case 88805: self.ninjaRunButtonView = button; self.ninjaRunSwitch = switchControl; break;
+        case 88806: self.flyAlturaButtonView = button; self.flyAlturaSwitch = switchControl; break;
+        case 88807: self.flyNormalButtonView = button; self.flyNormalSwitch = switchControl; break;
+        case 88808: self.savePosButtonView = button; self.savePosSwitch = switchControl; break;
+        case 88809: self.clearAntiuButtonView = button; self.clearAntiuSwitch = switchControl; break;
+        case 88810: self.magnetKillButtonView = button; self.magnetKillSwitch = switchControl; break;
+        case 88813: self.goTeleportStateButtonView = button; self.goTeleportStateSwitch = switchControl; break;
+        case 88814: self.stopMoveButtonView = button; self.stopMoveSwitch = switchControl; break;
+        case 88815: self.horizontalSpeedButtonView = button; self.horizontalSpeedSwitch = switchControl; break;
+        case 88816: self.flyv2ButtonView = button; self.flyv2Switch = switchControl; break;
+        case 88817: self.markTeleportButtonView = button; self.markTeleportSwitch = switchControl; break;
     }
 }
 
 - (void)configureSwitch:(UISwitch *)switchControl forTag:(NSInteger)tag withSelector:(NSString *)selector {
     switch (tag) {
-        case 88801:
-            switchControl.on = byte_B2D7C;
-            [switchControl addTarget:self action:NSSelectorFromString(selector) forControlEvents:UIControlEventValueChanged];
-            self.ghostButtonView = (UIButton *)switchControl.superview.superview;
-            self.ghostSwitch = switchControl;
-            break;
-        case 88802:
-            switchControl.on = byte_B2D82;
-            [switchControl addTarget:self action:NSSelectorFromString(selector) forControlEvents:UIControlEventValueChanged];
-            self.teleVIPButtonView = (UIButton *)switchControl.superview.superview;
-            self.teleVIPSwitch = switchControl;
-            break;
-        case 88803:
-            switchControl.on = byte_B2D86;
-            [switchControl addTarget:self action:NSSelectorFromString(selector) forControlEvents:UIControlEventValueChanged];
-            self.undergroundButtonView = (UIButton *)switchControl.superview.superview;
-            self.undergroundSwitch = switchControl;
-            break;
-        case 88804:
-            switchControl.on = byte_B2D8D;
-            [switchControl addTarget:self action:NSSelectorFromString(selector) forControlEvents:UIControlEventValueChanged];
-            self.aiTelekillButtonView = (UIButton *)switchControl.superview.superview;
-            self.aiTelekillSwitch = switchControl;
-            break;
-        case 88805:
-            switchControl.on = byte_B2D4A;
-            [switchControl addTarget:self action:NSSelectorFromString(selector) forControlEvents:UIControlEventValueChanged];
-            self.ninjaRunButtonView = (UIButton *)switchControl.superview.superview;
-            self.ninjaRunSwitch = switchControl;
-            break;
-        case 88806:
-            switchControl.on = 0;
-            [switchControl addTarget:self action:NSSelectorFromString(selector) forControlEvents:UIControlEventValueChanged];
-            self.flyAlturaButtonView = (UIButton *)switchControl.superview.superview;
-            self.flyAlturaSwitch = switchControl;
-            break;
-        case 88807:
-            switchControl.on = byte_B3B55;
-            [switchControl addTarget:self action:NSSelectorFromString(selector) forControlEvents:UIControlEventValueChanged];
-            self.flyNormalButtonView = (UIButton *)switchControl.superview.superview;
-            self.flyNormalSwitch = switchControl;
-            break;
-        case 88808:
-            switchControl.on = byte_B3B0C;
-            [switchControl addTarget:self action:NSSelectorFromString(selector) forControlEvents:UIControlEventValueChanged];
-            self.savePosButtonView = (UIButton *)switchControl.superview.superview;
-            self.savePosSwitch = switchControl;
-            break;
-        case 88809:
-            switchControl.on = byte_B3B0A;
-            [switchControl addTarget:self action:NSSelectorFromString(selector) forControlEvents:UIControlEventValueChanged];
-            self.clearAntiuButtonView = (UIButton *)switchControl.superview.superview;
-            self.clearAntiuSwitch = switchControl;
-            break;
-        case 88810:
-            switchControl.on = byte_B2E2C;
-            [switchControl addTarget:self action:NSSelectorFromString(selector) forControlEvents:UIControlEventValueChanged];
-            self.magnetKillButtonView = (UIButton *)switchControl.superview.superview;
-            self.magnetKillSwitch = switchControl;
-            break;
-        case 88813:
-            switchControl.on = byte_B3B0E;
-            [switchControl addTarget:self action:NSSelectorFromString(selector) forControlEvents:UIControlEventValueChanged];
-            self.goTeleportStateButtonView = (UIButton *)switchControl.superview.superview;
-            self.goTeleportStateSwitch = switchControl;
-            break;
-        case 88814:
-            switchControl.on = byte_B3AF8;
-            [switchControl addTarget:self action:NSSelectorFromString(selector) forControlEvents:UIControlEventValueChanged];
-            self.stopMoveButtonView = (UIButton *)switchControl.superview.superview;
-            self.stopMoveSwitch = switchControl;
-            break;
-        case 88815:
-            switchControl.on = byte_B3A7F;
-            [switchControl addTarget:self action:NSSelectorFromString(selector) forControlEvents:UIControlEventValueChanged];
-            self.horizontalSpeedButtonView = (UIButton *)switchControl.superview.superview;
-            self.horizontalSpeedSwitch = switchControl;
-            break;
-        case 88816:
-            switchControl.on = byte_B3B14;
-            [switchControl addTarget:self action:NSSelectorFromString(selector) forControlEvents:UIControlEventValueChanged];
-            self.flyv2ButtonView = (UIButton *)switchControl.superview.superview;
-            self.flyv2Switch = switchControl;
-            break;
-        case 88817:
-            switchControl.on = byte_B3B0F;
-            [switchControl addTarget:self action:NSSelectorFromString(selector) forControlEvents:UIControlEventValueChanged];
-            self.markTeleportButtonView = (UIButton *)switchControl.superview.superview;
-            self.markTeleportSwitch = switchControl;
-            break;
+        case 88801: switchControl.on = byte_B2D7C; break;
+        case 88802: switchControl.on = byte_B2D82; break;
+        case 88803: switchControl.on = byte_B2D86; break;
+        case 88804: switchControl.on = byte_B2D8D; break;
+        case 88805: switchControl.on = byte_B2D4A; break;
+        case 88806: switchControl.on = 0; break;
+        case 88807: switchControl.on = byte_B3B55; break;
+        case 88808: switchControl.on = byte_B3B0C; break;
+        case 88809: switchControl.on = byte_B3B0A; break;
+        case 88810: switchControl.on = byte_B2E2C; break;
+        case 88813: switchControl.on = byte_B3B0E; break;
+        case 88814: switchControl.on = byte_B3AF8; break;
+        case 88815: switchControl.on = byte_B3A7F; break;
+        case 88816: switchControl.on = byte_B3B14; break;
+        case 88817: switchControl.on = byte_B3B0F; break;
     }
+    [switchControl addTarget:self action:NSSelectorFromString(selector) forControlEvents:UIControlEventValueChanged];
 }
 
 - (void)removeAllFeatureButtons {
@@ -554,19 +536,127 @@ static char byte_B3B72 = 0;
 }
 
 - (void)createFloatingMenu {
-    // Implementation sẽ được thêm sau
+    // Tạo floating menu đơn giản
+    UIWindow *keyWindow = [UIApplication sharedApplication].keyWindow;
+    if (!keyWindow) return;
+    
+    // Tạo button floating
+    if (!g_floatingButton) {
+        g_floatingButton = [UIButton buttonWithType:UIButtonTypeCustom];
+        g_floatingButton.frame = CGRectMake(20, 100, 75, 30);
+        g_floatingButton.backgroundColor = [UIColor colorWithWhite:0 alpha:0.7];
+        g_floatingButton.layer.cornerRadius = 15;
+        g_floatingButton.layer.masksToBounds = NO;
+        g_floatingButton.layer.shadowColor = [UIColor blackColor].CGColor;
+        g_floatingButton.layer.shadowOpacity = 0.3;
+        g_floatingButton.layer.shadowRadius = 8;
+        g_floatingButton.layer.shadowOffset = CGSizeMake(0, 2);
+        [g_floatingButton setTitle:@"MOD" forState:UIControlStateNormal];
+        [g_floatingButton setTitleColor:[UIColor greenColor] forState:UIControlStateNormal];
+        g_floatingButton.titleLabel.font = [UIFont italicSystemFontOfSize:12];
+        [g_floatingButton addTarget:self action:@selector(toggleMenu) forControlEvents:UIControlEventTouchUpInside];
+        [keyWindow addSubview:g_floatingButton];
+    }
+    
+    // Tạo menu view đơn giản
+    if (!self.floatingMenu) {
+        UIView *menuView = [[UIView alloc] initWithFrame:CGRectMake((keyWindow.bounds.size.width - 300) / 2,
+                                                                     (keyWindow.bounds.size.height - 400) / 2,
+                                                                     300, 400)];
+        menuView.backgroundColor = [UIColor colorWithWhite:0.1 alpha:0.95];
+        menuView.layer.cornerRadius = 20;
+        menuView.layer.masksToBounds = YES;
+        menuView.hidden = YES;
+        menuView.tag = 99999;
+        
+        // Title
+        UILabel *titleLabel = [[UILabel alloc] initWithFrame:CGRectMake(0, 10, 300, 30)];
+        titleLabel.text = @"FLUCK MOD MENU";
+        titleLabel.textColor = [UIColor whiteColor];
+        titleLabel.textAlignment = NSTextAlignmentCenter;
+        titleLabel.font = [UIFont boldSystemFontOfSize:20];
+        [menuView addSubview:titleLabel];
+        
+        // Close button
+        UIButton *closeBtn = [UIButton buttonWithType:UIButtonTypeSystem];
+        closeBtn.frame = CGRectMake(260, 10, 30, 30);
+        [closeBtn setTitle:@"✕" forState:UIControlStateNormal];
+        [closeBtn setTitleColor:[UIColor whiteColor] forState:UIControlStateNormal];
+        [closeBtn addTarget:self action:@selector(hideMenu) forControlEvents:UIControlEventTouchUpInside];
+        [menuView addSubview:closeBtn];
+        
+        // Feature toggle buttons
+        NSArray *features = @[
+            @{@"title": @"GHOST", @"tag": @1001, @"var": &byte_B2D7C},
+            @{@"title": @"TELE VIP", @"tag": @1002, @"var": &byte_B2D82},
+            @{@"title": @"UNDERGROUND", @"tag": @1003, @"var": &byte_B2D86},
+            @{@"title": @"AI KILL", @"tag": @1004, @"var": &byte_B2D8D},
+            @{@"title": @"NINJA RUN", @"tag": @1005, @"var": &byte_B2D4A},
+            @{@"title": @"FLY ALT", @"tag": @1006, @"var": &byte_B3A7E},
+            @{@"title": @"INVISIBLE", @"tag": @1007, @"var": &byte_B3B55},
+            @{@"title": @"FLYV2", @"tag": @1008, @"var": &byte_B3B14},
+            @{@"title": @"SAVE POS", @"tag": @1009, @"var": &byte_B3B0C},
+            @{@"title": @"TELEPORT", @"tag": @1010, @"var": &byte_B3B0E},
+        ];
+        
+        for (int i = 0; i < features.count; i++) {
+            NSDictionary *feature = features[i];
+            char *var = (char *)[feature[@"var"] pointerValue];
+            
+            UISwitch *sw = [[UISwitch alloc] initWithFrame:CGRectMake(230, 50 + i * 35, 50, 30)];
+            sw.on = *var;
+            sw.tag = [feature[@"tag"] integerValue];
+            [sw addTarget:self action:@selector(toggleFeatureSwitch:) forControlEvents:UIControlEventValueChanged];
+            [menuView addSubview:sw];
+            
+            UILabel *label = [[UILabel alloc] initWithFrame:CGRectMake(20, 50 + i * 35, 200, 30)];
+            label.text = feature[@"title"];
+            label.textColor = [UIColor whiteColor];
+            label.font = [UIFont systemFontOfSize:14];
+            [menuView addSubview:label];
+        }
+        
+        [keyWindow addSubview:menuView];
+        self.floatingMenu = menuView;
+    }
+}
+
+- (void)toggleFeatureSwitch:(UISwitch *)sender {
+    switch (sender.tag) {
+        case 1001: byte_B2D7C = sender.isOn; break;
+        case 1002: byte_B2D82 = sender.isOn; break;
+        case 1003: byte_B2D86 = sender.isOn; break;
+        case 1004: byte_B2D8D = sender.isOn; break;
+        case 1005: byte_B2D4A = sender.isOn; break;
+        case 1006: byte_B3A7E = sender.isOn; break;
+        case 1007: byte_B3B55 = sender.isOn; break;
+        case 1008: byte_B3B14 = sender.isOn; break;
+        case 1009: byte_B3B0C = sender.isOn; break;
+        case 1010: byte_B3B0E = sender.isOn; break;
+    }
+    [self saveUIState];
 }
 
 - (void)showMenu {
     self.isMenuOpen = YES;
-    self.floatingMenu.hidden = NO;
-    [self.floatingMenu reloadData];
+    if (self.floatingMenu) {
+        self.floatingMenu.hidden = NO;
+        [self.floatingMenu.superview bringSubviewToFront:self.floatingMenu];
+    }
+    if (g_floatingButton) {
+        g_floatingButton.hidden = YES;
+    }
     [self saveUIState];
 }
 
 - (void)hideMenu {
     self.isMenuOpen = NO;
-    self.floatingMenu.hidden = YES;
+    if (self.floatingMenu) {
+        self.floatingMenu.hidden = YES;
+    }
+    if (g_floatingButton) {
+        g_floatingButton.hidden = NO;
+    }
     [self saveUIState];
 }
 
@@ -616,568 +706,4 @@ static char byte_B3B72 = 0;
     [self saveMenuState];
 }
 
-- (void)saveButtonState:(NSMutableDictionary *)dict tag:(NSInteger)tag value:(BOOL)value {
-    NSString *key = [NSString stringWithFormat:@"%ld", (long)tag];
-    dict[key] = @{@"visible": @(value)};
-}
-
-- (void)loadUIState {
-    NSMutableDictionary *state = [[self readUIStateJSON] mutableCopy];
-    
-    UIColor *defaultColor = [UIColor colorWithRed:0.2 green:0.6 blue:0.9 alpha:1.0];
-    id themeColorData = state[@"themeColor"];
-    UIColor *loadedColor = [self deserializeColor:themeColorData fallback:defaultColor];
-    self.currentThemeColor = loadedColor;
-    
-    NSDictionary *buttons = state[@"buttons"];
-    if (buttons) {
-        byte_B2D98 = [self loadButtonState:buttons tag:88801 defaultValue:byte_B2D98];
-        byte_B2DC5 = [self loadButtonState:buttons tag:88802 defaultValue:byte_B2DC5];
-        byte_B2DD4 = [self loadButtonState:buttons tag:88803 defaultValue:byte_B2DD4];
-        byte_B2D64 = [self loadButtonState:buttons tag:88804 defaultValue:byte_B2D64];
-        byte_B2D85 = [self loadButtonState:buttons tag:88805 defaultValue:byte_B2D85];
-        byte_B2D9B = [self loadButtonState:buttons tag:88806 defaultValue:byte_B2D9B];
-        byte_B2D9C = [self loadButtonState:buttons tag:88807 defaultValue:byte_B2D9C];
-        byte_B2E24 = [self loadButtonState:buttons tag:88808 defaultValue:byte_B2E24];
-        byte_B3358 = [self loadButtonState:buttons tag:88813 defaultValue:byte_B3358];
-        byte_B3359 = [self loadButtonState:buttons tag:88814 defaultValue:byte_B3359];
-        byte_B335A = [self loadButtonState:buttons tag:88815 defaultValue:byte_B335A];
-        byte_B335B = [self loadButtonState:buttons tag:88816 defaultValue:byte_B335B];
-        byte_B2E25 = [self loadButtonState:buttons tag:88809 defaultValue:byte_B2E25];
-        byte_B2E2D = [self loadButtonState:buttons tag:88810 defaultValue:byte_B2E2D];
-        byte_B335C = [self loadButtonState:buttons tag:88817 defaultValue:byte_B335C];
-    }
-    
-    NSNumber *showAll = state[@"showAllButtons"];
-    byte_B335D = showAll ? [showAll boolValue] : 1;
-    
-    NSNumber *aimFov = state[@"AimFov"];
-    if (aimFov) dword_B2D60 = [aimFov floatValue];
-    
-    NSNumber *timerMin = state[@"TakeDamageTimerMin"];
-    if (timerMin) dword_B2CD4 = [timerMin intValue];
-    
-    NSNumber *timerMax = state[@"TakeDamageTimerMax"];
-    if (timerMax) dword_B2CD8 = [timerMax intValue];
-    
-    NSNumber *teleportRadius = state[@"goTeleportStateRadius"];
-    if (teleportRadius) dword_B2CE4 = [teleportRadius floatValue];
-    
-    [self loadMenuState];
-}
-
-- (BOOL)loadButtonState:(NSDictionary *)buttons tag:(NSInteger)tag defaultValue:(BOOL)defaultValue {
-    NSString *key = [NSString stringWithFormat:@"%ld", (long)tag];
-    NSDictionary *buttonData = buttons[key];
-    if (!buttonData) return defaultValue;
-    
-    NSNumber *visible = buttonData[@"visible"];
-    if (!visible) return defaultValue;
-    
-    return [visible boolValue];
-}
-
-- (void)saveMenuState {
-    NSMutableDictionary *state = [[self readUIStateJSON] mutableCopy];
-    NSMutableDictionary *menuState = [NSMutableDictionary dictionary];
-    
-    menuState[@"isOpen"] = @(self.isMenuOpen);
-    
-    if (self.floatingMenu) {
-        menuState[@"selectedTab"] = @(self.floatingMenu.selectedTabIndex);
-        
-        NSMutableDictionary *position = [NSMutableDictionary dictionary];
-        position[@"x"] = @(self.floatingMenu.frame.origin.x);
-        position[@"y"] = @(self.floatingMenu.frame.origin.y);
-        menuState[@"position"] = position;
-    }
-    
-    state[@"floatingMenu"] = menuState;
-    [self writeUIStateJSON:state];
-}
-
-- (void)loadMenuState {
-    NSDictionary *state = [self readUIStateJSON];
-    NSDictionary *menuState = state[@"floatingMenu"];
-    
-    if (menuState) {
-        self.isMenuOpen = [menuState[@"isOpen"] boolValue];
-        
-        NSNumber *selectedTab = menuState[@"selectedTab"];
-        if (selectedTab && self.floatingMenu) {
-            self.floatingMenu.selectedTabIndex = [selectedTab integerValue];
-            [self.floatingMenu updateTabSelection];
-            [self.floatingMenu reloadData];
-        }
-    } else {
-        self.isMenuOpen = YES;
-    }
-    
-    if (self.floatingMenu) {
-        self.floatingMenu.hidden = !self.isMenuOpen;
-    }
-}
-
-- (id)uiStateJSONPath {
-    NSArray *paths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
-    return [[paths firstObject] stringByAppendingPathComponent:@"menu_ui_state.json"];
-}
-
-- (id)readUIStateJSON {
-    NSString *path = [self uiStateJSONPath];
-    if (!path) return [NSMutableDictionary dictionary];
-    
-    NSData *data = [NSData dataWithContentsOfFile:path];
-    if (!data || data.length == 0) return [NSMutableDictionary dictionary];
-    
-    NSError *error;
-    id json = [NSJSONSerialization JSONObjectWithData:data options:0 error:&error];
-    if (error || ![json isKindOfClass:[NSDictionary class]]) {
-        return [NSMutableDictionary dictionary];
-    }
-    return [json mutableCopy];
-}
-
-- (void)writeUIStateJSON:(id)data {
-    if (!data) return;
-    
-    NSString *path = [self uiStateJSONPath];
-    NSError *error;
-    NSData *jsonData = [NSJSONSerialization dataWithJSONObject:data options:NSJSONWritingPrettyPrinted error:&error];
-    if (jsonData && !error) {
-        [jsonData writeToFile:path atomically:YES];
-    }
-}
-
-- (id)serializeColor:(UIColor *)color {
-    if (!color) return nil;
-    
-    CGFloat r, g, b, a;
-    if ([color getRed:&r green:&g blue:&b alpha:&a]) {
-        return @{@"r": @(r), @"g": @(g), @"b": @(b), @"a": @(a)};
-    }
-    return nil;
-}
-
-- (id)deserializeColor:(id)colorData fallback:(UIColor *)fallback {
-    if (![colorData isKindOfClass:[NSDictionary class]]) return fallback;
-    
-    NSDictionary *dict = colorData;
-    NSNumber *r = dict[@"r"];
-    NSNumber *g = dict[@"g"];
-    NSNumber *b = dict[@"b"];
-    
-    if (!r || !g || !b) return fallback;
-    
-    CGFloat alpha = dict[@"a"] ? [dict[@"a"] floatValue] : 1.0;
-    return [UIColor colorWithRed:[r floatValue] green:[g floatValue] blue:[b floatValue] alpha:alpha];
-}
-
-- (UIColor *)loadSavedThemeColor {
-    id state = [self readUIStateJSON];
-    return [self deserializeColor:state[@"themeColor"] 
-                         fallback:[UIColor colorWithRed:0.2 green:0.6 blue:0.9 alpha:1.0]];
-}
-
-#pragma mark - Feature Actions
-
-- (void)ghostSwitchChanged:(UISwitch *)sender {
-    byte_B2D7C = sender.isOn;
-}
-
-- (void)teleVIPSwitchChanged:(UISwitch *)sender {
-    byte_B2D82 = sender.isOn;
-    if (!sender.isOn) byte_B3A7E = 0;
-}
-
-- (void)undergroundSwitchChanged:(UISwitch *)sender {
-    byte_B2D86 = sender.isOn;
-}
-
-- (void)aiTelekillSwitchChanged:(UISwitch *)sender {
-    byte_B2D8D = sender.isOn;
-}
-
-- (void)ninjaRunSwitchChanged:(UISwitch *)sender {
-    byte_B2D4A = sender.isOn;
-}
-
-- (void)flyAlturaSwitchChanged:(UISwitch *)sender {
-    byte_B3A7E = sender.isOn;
-}
-
-- (void)flyNormalSwitchChanged:(UISwitch *)sender {
-    byte_B3B55 = sender.isOn;
-}
-
-- (void)flyv2SwitchChanged:(UISwitch *)sender {
-    byte_B3B14 = sender.isOn;
-}
-
-- (void)savePosSwitchChanged:(UISwitch *)sender {
-    byte_B3B0C = sender.isOn;
-}
-
-- (void)goTeleportStateSwitchChanged:(UISwitch *)sender {
-    byte_B3B0E = sender.isOn;
-}
-
-- (void)stopMoveSwitchChanged:(UISwitch *)sender {
-    byte_B3AF8 = sender.isOn;
-}
-
-- (void)horizontalSpeedSwitchChanged:(UISwitch *)sender {
-    byte_B3A7F = sender.isOn;
-}
-
-- (void)clearAntiuSwitchChanged:(UISwitch *)sender {
-    byte_B3B0A = sender.isOn;
-    byte_B3AF5 = sender.isOn;
-}
-
-- (void)magnetKillSwitchChanged:(UISwitch *)sender {
-    byte_B2E2C = sender.isOn;
-}
-
-- (void)markTeleportSwitchChanged:(UISwitch *)sender {
-    byte_B3B0F = sender.isOn;
-}
-
-#pragma mark - Toggle Visibility
-
-- (void)toggleShowGhostUI:(UISwitch *)sender {
-    byte_B2D98 = sender ? sender.isOn : !byte_B2D98;
-    [self updateUIButtonVisibility];
-}
-
-- (void)toggleShowTeleVIPUI:(UISwitch *)sender {
-    byte_B2DC5 = sender ? sender.isOn : !byte_B2DC5;
-    [self updateUIButtonVisibility];
-}
-
-- (void)toggleShowUndergroundUI:(UISwitch *)sender {
-    byte_B2DD4 = sender ? sender.isOn : !byte_B2DD4;
-    [self updateUIButtonVisibility];
-}
-
-- (void)toggleShowAITelekillUI:(UISwitch *)sender {
-    byte_B2D64 = sender ? sender.isOn : !byte_B2D64;
-    [self updateUIButtonVisibility];
-}
-
-- (void)toggleShowNinjaRunUI:(UISwitch *)sender {
-    byte_B2D85 = sender ? sender.isOn : !byte_B2D85;
-    [self updateUIButtonVisibility];
-}
-
-- (void)toggleShowFlyAlturaUI:(UISwitch *)sender {
-    byte_B2D9B = sender ? sender.isOn : !byte_B2D9B;
-    [self updateUIButtonVisibility];
-}
-
-- (void)toggleUIFlyNormal:(UISwitch *)sender {
-    byte_B2D9C = sender ? sender.isOn : !byte_B2D9C;
-    [self updateUIButtonVisibility];
-}
-
-- (void)toggleShowFlyv2UI:(UISwitch *)sender {
-    byte_B335B = sender ? sender.isOn : !byte_B335B;
-    [self updateUIButtonVisibility];
-}
-
-- (void)toggleShowSavePosUI:(UISwitch *)sender {
-    byte_B2E24 = sender ? sender.isOn : !byte_B2E24;
-    [self updateUIButtonVisibility];
-}
-
-- (void)toggleShowGoTeleportStateUI:(UISwitch *)sender {
-    byte_B3358 = sender ? sender.isOn : !byte_B3358;
-    [self updateUIButtonVisibility];
-}
-
-- (void)toggleShowStopMoveUI:(UISwitch *)sender {
-    byte_B3359 = sender ? sender.isOn : !byte_B3359;
-    [self updateUIButtonVisibility];
-}
-
-- (void)toggleShowHorizontalSpeedUI:(UISwitch *)sender {
-    byte_B335A = sender ? sender.isOn : !byte_B335A;
-    [self updateUIButtonVisibility];
-}
-
-- (void)toggleShowClearAntiuUI:(UISwitch *)sender {
-    byte_B2E25 = sender ? sender.isOn : !byte_B2E25;
-    [self updateUIButtonVisibility];
-}
-
-- (void)toggleShowMagnetKillUI:(UISwitch *)sender {
-    byte_B2E2D = sender ? sender.isOn : !byte_B2E2D;
-    [self updateUIButtonVisibility];
-}
-
-- (void)toggleShowMarkTeleportUI:(UISwitch *)sender {
-    byte_B335C = sender ? sender.isOn : !byte_B335C;
-    [self updateUIButtonVisibility];
-}
-
-#pragma mark - Protection
-
-- (void)protectAllFeatureButtons {
-    // Implementation
-}
-
-- (void)unprotectAllFeatureButtons {
-    // Implementation
-}
-
-- (void)screenCaptureStatusChanged:(NSNotification *)notification {
-    // Implementation
-}
-
-- (void)toggleStreamMode:(UISwitch *)sender {
-    // Implementation
-}
-
-- (void)setAllButtonsVisible:(BOOL)visible {
-    byte_B335D = visible;
-    byte_B2DD4 = visible;
-    byte_B2D64 = visible;
-    byte_B2D9B = visible;
-    byte_B3358 = visible;
-    byte_B3359 = visible;
-    byte_B335A = visible;
-    byte_B2E25 = visible;
-    [self createAllFeatureButtons];
-}
-
-#pragma mark - Gestures
-
-- (void)addMasterToggleGesture {
-    UIWindow *keyWindow = [UIApplication sharedApplication].keyWindow;
-    if (!keyWindow) return;
-    
-    UIViewController *rootVC = keyWindow.rootViewController;
-    if (!rootVC) return;
-    
-    UITapGestureRecognizer *gesture = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(toggleMasterVisibility:)];
-    gesture.numberOfTapsRequired = 3;
-    gesture.numberOfTouchesRequired = 3;
-    [rootVC.view addGestureRecognizer:gesture];
-}
-
-- (void)toggleMasterVisibility:(UITapGestureRecognizer *)gesture {
-    BOOL newState = !byte_B335D;
-    byte_B335D ^= 1;
-    [self setAllButtonsVisible:newState];
-    
-    UIImpactFeedbackGenerator *feedback = [[UIImpactFeedbackGenerator alloc] initWithStyle:UIImpactFeedbackStyleHeavy];
-    [feedback impactOccurred];
-}
-
-- (void)handleFeatureDrag:(UIPanGestureRecognizer *)gesture {
-    UIButton *button = (UIButton *)gesture.view;
-    UIView *superview = button.superview;
-    
-    CGPoint translation = [gesture translationInView:superview];
-    CGPoint center = button.center;
-    button.center = CGPointMake(center.x + translation.x, center.y + translation.y);
-    [gesture setTranslation:CGPointZero inView:superview];
-    
-    if (gesture.state == UIGestureRecognizerStateEnded) {
-        [self saveButtonPosition:button];
-        [self saveUIState];
-    }
-}
-
-#pragma mark - Button Helpers
-
-- (id)createFeatureButton:(NSString *)title withTag:(NSInteger)tag {
-    UIButton *button = [[UIButton alloc] initWithFrame:CGRectZero];
-    button.tag = tag;
-    button.backgroundColor = [UIColor clearColor];
-    
-    UILabel *label = [[UILabel alloc] initWithFrame:CGRectMake(0, 5, 90, 16)];
-    label.text = title;
-    label.font = [UIFont systemFontOfSize:10 weight:UIFontWeightBold];
-    label.textColor = [self accentColor];
-    label.textAlignment = NSTextAlignmentCenter;
-    label.tag = 200;
-    [button addSubview:label];
-    
-    return button;
-}
-
-- (id)createFeatureSwitchContainer {
-    UIView *container = [[UIView alloc] init];
-    container.backgroundColor = [UIColor clearColor];
-    
-    UISwitch *switchControl = [[UISwitch alloc] init];
-    switchControl.onTintColor = [self accentColor];
-    switchControl.thumbTintColor = [UIColor whiteColor];
-    switchControl.tag = 400;
-    
-    container.frame = CGRectMake(0, 0, 58, 39.3);
-    switchControl.frame = CGRectMake(4, 4.2, 51, 31);
-    
-    UIColor *accent = [self accentColor];
-    CGFloat r, g, b, a;
-    [accent getRed:&r green:&g blue:&b alpha:&a];
-    UIColor *borderColor = [UIColor colorWithRed:r * 0.7 green:g * 0.7 blue:b * 0.7 alpha:1.0];
-    
-    container.layer.borderWidth = 4.0;
-    container.layer.borderColor = borderColor.CGColor;
-    container.layer.cornerRadius = 19.65;
-    container.layer.shadowColor = accent.CGColor;
-    container.layer.shadowOpacity = 1.0;
-    container.layer.shadowRadius = 25.0;
-    container.layer.shadowOffset = CGSizeZero;
-    container.layer.masksToBounds = NO;
-    container.tag = 401;
-    
-    [container addSubview:switchControl];
-    return container;
-}
-
-- (CGPoint)loadButtonPosition:(NSInteger)tag defaultX:(CGFloat)defaultX defaultY:(CGFloat)defaultY {
-    NSDictionary *state = [self readUIStateJSON];
-    NSDictionary *buttons = state[@"buttons"];
-    
-    if (!buttons) return CGPointMake(defaultX, defaultY);
-    
-    NSString *key = [NSString stringWithFormat:@"%ld", (long)tag];
-    NSDictionary *buttonData = buttons[key];
-    if (!buttonData) return CGPointMake(defaultX, defaultY);
-    
-    NSNumber *x = buttonData[@"x"];
-    NSNumber *y = buttonData[@"y"];
-    if (!x || !y) return CGPointMake(defaultX, defaultY);
-    
-    CGFloat posX = [x floatValue];
-    CGFloat posY = [y floatValue];
-    
-    UIScreen *screen = [UIScreen mainScreen];
-    CGFloat maxX = screen.bounds.size.width - 90;
-    CGFloat maxY = screen.bounds.size.height - 90;
-    
-    return CGPointMake(MAX(0, MIN(posX, maxX)), MAX(0, MIN(posY, maxY)));
-}
-
-- (void)saveButtonPosition:(UIButton *)button {
-    if (!button) return;
-    
-    NSMutableDictionary *state = [[self readUIStateJSON] mutableCopy];
-    NSMutableDictionary *buttons = [state[@"buttons"] mutableCopy] ?: [NSMutableDictionary dictionary];
-    
-    NSString *key = [NSString stringWithFormat:@"%ld", (long)button.tag];
-    NSMutableDictionary *buttonData = [buttons[key] mutableCopy] ?: [NSMutableDictionary dictionary];
-    
-    buttonData[@"x"] = @(button.frame.origin.x);
-    buttonData[@"y"] = @(button.frame.origin.y);
-    buttons[key] = buttonData;
-    
-    state[@"buttons"] = buttons;
-    [self writeUIStateJSON:state];
-}
-
-#pragma mark - Theme
-
-- (UIColor *)accentColor {
-    return self.currentThemeColor ?: [UIColor colorWithRed:0.2 green:0.6 blue:0.9 alpha:1.0];
-}
-
-- (UIColor *)textColor {
-    return [UIColor whiteColor];
-}
-
-- (UIColor *)glowColor {
-    return [[self accentColor] colorWithAlphaComponent:0.6];
-}
-
-- (UIColor *)pillColor {
-    return [UIColor colorWithWhite:0.18 alpha:0.38];
-}
-
-- (UIColor *)checkboxOffColor {
-    return [UIColor blackColor];
-}
-
-#pragma mark - Settings
-
-- (NSString *)settingsFilePath {
-    NSArray *paths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
-    return [[paths firstObject] stringByAppendingPathComponent:@"settings.fluck"];
-}
-
-- (void)loadResolutionAndLineOriginFromSettingsFile {
-    NSString *path = [self settingsFilePath];
-    if (!path) return;
-    
-    NSFileManager *fileManager = [NSFileManager defaultManager];
-    NSString *content = nil;
-    
-    if ([fileManager fileExistsAtPath:path]) {
-        content = [NSString stringWithContentsOfFile:path encoding:NSUTF8StringEncoding error:nil];
-    }
-    
-    if (!content || content.length == 0) {
-        content = [[NSUserDefaults standardUserDefaults] stringForKey:@"FluckSettingsBackup"];
-    }
-    
-    if (!content || content.length == 0) return;
-    
-    NSMutableDictionary *settings = [NSMutableDictionary dictionary];
-    for (NSString *line in [content componentsSeparatedByString:@"\n"]) {
-        NSArray *parts = [line componentsSeparatedByString:@"="];
-        if (parts.count == 2) {
-            NSString *key = [parts[0] stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
-            NSString *value = [parts[1] stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
-            settings[key] = value;
-        }
-    }
-    
-    NSNumber *lineOrigin = settings[@"LineOrigin"];
-    if (lineOrigin) {
-        int value = [lineOrigin intValue];
-        if (value >= 0 && value <= 2) dword_B39D0 = value;
-    }
-    
-    NSNumber *resolutionWidth = settings[@"ResolutionWidth"];
-    if (resolutionWidth) {
-        int value = [resolutionWidth intValue];
-        if (value >= 720 && value <= 2000) dword_B39D4 = value;
-    }
-    
-    NSNumber *resolutionHeight = settings[@"ResolutionHeight"];
-    if (resolutionHeight) {
-        int value = [resolutionHeight intValue];
-        if (value >= 720 && value <= 2000) dword_B39D8 = value;
-    }
-}
-
-#pragma mark - Menu Building
-
-- (NSArray *)buildMenuTabs {
-    return @[];
-}
-
-#pragma mark - Class Methods
-
-+ (void)toggleMenuFromFloatingButton {
-    // Implementation
-}
-
-@end
-
-// ============================================================================
-// CONSTRUCTOR - Khởi tạo khi load
-// ============================================================================
-
-__attribute__((constructor))
-static void initializeHack(void) {
-    NSLog(@"[FFHack] ✅ Đã tải thành công!");
-    NSLog(@"[FFHack] 🔥 Mod Menu đã sẵn sàng");
-}
-
-// ============================================================================
-// END OF FILE
-// ============================================================================
+- (void
