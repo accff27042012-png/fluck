@@ -1,14 +1,31 @@
-ARCHS = arm64 arm64e
-TARGET = iphone:latest:14.0
+# Build thẳng thành dylib, không cần Theos
+TARGET = libfluck.dylib
 
-include $(THEOS)/makefiles/common.mk
+all: $(TARGET)
 
-TWEAK_NAME = fluck
-fluck_FILES = Tweak.xm
-fluck_CFLAGS = -fobjc-arc -O2 -Wno-deprecated-declarations -Wno-error
-fluck_FRAMEWORKS = UIKit Foundation CoreGraphics QuartzCore
+$(TARGET): fluck.mm
+	clang++ -dynamiclib -arch arm64 \
+		-isysroot $(shell xcrun --sdk iphoneos --show-sdk-path) \
+		-framework Foundation \
+		-framework UIKit \
+		-framework CoreGraphics \
+		-framework QuartzCore \
+		-framework AVFoundation \
+		-framework CoreLocation \
+		-framework MapKit \
+		-framework WebKit \
+		-framework SceneKit \
+		-framework SpriteKit \
+		-framework Metal \
+		-framework CoreImage \
+		-framework Security \
+		-framework SystemConfiguration \
+		-Oz \
+		-o $@ \
+		fluck.mm \
+		-lz -lc++ -ObjC
 
-# Tắt ký mã (cho build trên GitHub Actions)
-_TARGET_CODESIGN = echo
+clean:
+	rm -f $(TARGET)
 
-include $(THEOS_MAKE_PATH)/tweak.mk
+.PHONY: all clean
