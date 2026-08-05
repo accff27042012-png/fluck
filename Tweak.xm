@@ -4,7 +4,7 @@
 #import <dlfcn.h>
 #import <QuartzCore/QuartzCore.h>
 #import <objc/runtime.h>
-#import <mach-o/dyld.h>  // THÊM HEADER NÀY
+#import <mach-o/dyld.h>
 
 static void* _baseAddress = NULL;
 static BOOL _isInjected = NO;
@@ -20,6 +20,33 @@ void* GetBaseAddress() {
         }
     }
     return NULL;
+}
+
+// Helper: Lấy key window an toàn cho iOS 13+
+static UIWindow* GetKeyWindow(void) {
+    if (@available(iOS 13.0, *)) {
+        NSSet *scenes = [UIApplication sharedApplication].connectedScenes;
+        for (UIScene *scene in scenes) {
+            if ([scene isKindOfClass:[UIWindowScene class]]) {
+                UIWindowScene *windowScene = (UIWindowScene *)scene;
+                if (windowScene.activationState == UISceneActivationStateForegroundActive) {
+                    for (UIWindow *window in windowScene.windows) {
+                        if (window.isKeyWindow) {
+                            return window;
+                        }
+                    }
+                    return windowScene.windows.firstObject;
+                }
+            }
+        }
+        return nil;
+    } else {
+        // iOS 12 trở xuống
+        #pragma clang diagnostic push
+        #pragma clang diagnostic ignored "-Wdeprecated-declarations"
+        return [UIApplication sharedApplication].keyWindow;
+        #pragma clang diagnostic pop
+    }
 }
 
 // === ESP Manager ===
@@ -49,22 +76,7 @@ void* GetBaseAddress() {
         _showHealth = YES;
         _showDistance = YES;
         dispatch_async(dispatch_get_main_queue(), ^{
-            // SỬA: Sử dụng connectedScenes thay vì keyWindow deprecated
-            UIWindow *keyWindow = nil;
-            if (@available(iOS 13.0, *)) {
-                NSSet *scenes = [UIApplication sharedApplication].connectedScenes;
-                for (UIScene *scene in scenes) {
-                    if ([scene isKindOfClass:[UIWindowScene class]]) {
-                        UIWindowScene *windowScene = (UIWindowScene *)scene;
-                        if (windowScene.activationState == UISceneActivationStateForegroundActive) {
-                            keyWindow = windowScene.windows.firstObject;
-                            break;
-                        }
-                    }
-                }
-            } else {
-                keyWindow = [UIApplication sharedApplication].keyWindow;
-            }
+            UIWindow *keyWindow = GetKeyWindow();
             if (keyWindow) {
                 self->_overlay = [[UIView alloc] initWithFrame:keyWindow.bounds];
                 self->_overlay.backgroundColor = [UIColor clearColor];
@@ -153,26 +165,8 @@ void* GetBaseAddress() {
     return self;
 }
 
-- (UIWindow *)getKeyWindow {
-    // SỬA: Hàm helper để lấy key window không bị deprecated
-    if (@available(iOS 13.0, *)) {
-        NSSet *scenes = [UIApplication sharedApplication].connectedScenes;
-        for (UIScene *scene in scenes) {
-            if ([scene isKindOfClass:[UIWindowScene class]]) {
-                UIWindowScene *windowScene = (UIWindowScene *)scene;
-                if (windowScene.activationState == UISceneActivationStateForegroundActive) {
-                    return windowScene.windows.firstObject;
-                }
-            }
-        }
-        return nil;
-    } else {
-        return [UIApplication sharedApplication].keyWindow;
-    }
-}
-
 - (void)setupUI {
-    UIWindow *keyWindow = [self getKeyWindow];
+    UIWindow *keyWindow = GetKeyWindow();
     if (!keyWindow) return;
     
     self.frame = keyWindow.bounds;
