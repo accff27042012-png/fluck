@@ -1,52 +1,10 @@
-name: Build iOS Dylib
-
-on:
-  push:
-    branches: [ main, master ]
-  workflow_dispatch:
-
+name: Debug Compile
+on: [push]
 jobs:
   build:
     runs-on: macos-latest
-    
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Compile fluck.dylib
+      - uses: actions/checkout@v4
+      - name: Compile test
         run: |
-          clang++ -dynamiclib -arch arm64 \
-            -isysroot $(xcrun --sdk iphoneos --show-sdk-path) \
-            -framework Foundation \
-            -framework UIKit \
-            -framework CoreGraphics \
-            -framework QuartzCore \
-            -framework AVFoundation \
-            -framework CoreLocation \
-            -framework MapKit \
-            -framework WebKit \
-            -framework SceneKit \
-            -framework SpriteKit \
-            -framework Metal \
-            -framework CoreImage \
-            -framework Security \
-            -framework SystemConfiguration \
-            -Oz \
-            -o fluck.dylib \
-            fluck.mm \
-            -lz \
-            -lc++
-
-      - name: Show file info
-        run: |
-          echo "📦 File size:"
-          ls -lh fluck.dylib
-          echo ""
-          echo "🔍 File info:"
-          file fluck.dylib
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: fluck
-          path: fluck.dylib
+          clang++ -c -arch arm64 -isysroot $(xcrun --sdk iphoneos --show-sdk-path) fluck.mm
