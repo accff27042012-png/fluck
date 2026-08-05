@@ -4,6 +4,7 @@
 #import <dlfcn.h>
 #import <QuartzCore/QuartzCore.h>
 #import <objc/runtime.h>
+#import <mach-o/dyld.h>  // THÊM HEADER NÀY
 
 static void* _baseAddress = NULL;
 static BOOL _isInjected = NO;
@@ -48,7 +49,22 @@ void* GetBaseAddress() {
         _showHealth = YES;
         _showDistance = YES;
         dispatch_async(dispatch_get_main_queue(), ^{
-            UIWindow *keyWindow = [UIApplication sharedApplication].keyWindow;
+            // SỬA: Sử dụng connectedScenes thay vì keyWindow deprecated
+            UIWindow *keyWindow = nil;
+            if (@available(iOS 13.0, *)) {
+                NSSet *scenes = [UIApplication sharedApplication].connectedScenes;
+                for (UIScene *scene in scenes) {
+                    if ([scene isKindOfClass:[UIWindowScene class]]) {
+                        UIWindowScene *windowScene = (UIWindowScene *)scene;
+                        if (windowScene.activationState == UISceneActivationStateForegroundActive) {
+                            keyWindow = windowScene.windows.firstObject;
+                            break;
+                        }
+                    }
+                }
+            } else {
+                keyWindow = [UIApplication sharedApplication].keyWindow;
+            }
             if (keyWindow) {
                 self->_overlay = [[UIView alloc] initWithFrame:keyWindow.bounds];
                 self->_overlay.backgroundColor = [UIColor clearColor];
@@ -137,8 +153,26 @@ void* GetBaseAddress() {
     return self;
 }
 
+- (UIWindow *)getKeyWindow {
+    // SỬA: Hàm helper để lấy key window không bị deprecated
+    if (@available(iOS 13.0, *)) {
+        NSSet *scenes = [UIApplication sharedApplication].connectedScenes;
+        for (UIScene *scene in scenes) {
+            if ([scene isKindOfClass:[UIWindowScene class]]) {
+                UIWindowScene *windowScene = (UIWindowScene *)scene;
+                if (windowScene.activationState == UISceneActivationStateForegroundActive) {
+                    return windowScene.windows.firstObject;
+                }
+            }
+        }
+        return nil;
+    } else {
+        return [UIApplication sharedApplication].keyWindow;
+    }
+}
+
 - (void)setupUI {
-    UIWindow *keyWindow = [UIApplication sharedApplication].keyWindow;
+    UIWindow *keyWindow = [self getKeyWindow];
     if (!keyWindow) return;
     
     self.frame = keyWindow.bounds;
@@ -295,7 +329,6 @@ void* GetBaseAddress() {
         _settings = [dict mutableCopy];
     }
     
-    // Apply settings
     [FluckESP shared].enabled = [[_settings objectForKey:@"esp_enabled"] boolValue];
     [FluckESP shared].style = [[_settings objectForKey:@"esp_style"] integerValue];
     [FluckESP shared].showHealth = [[_settings objectForKey:@"esp_health"] boolValue];
