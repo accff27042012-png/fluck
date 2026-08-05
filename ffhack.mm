@@ -1,729 +1,1595 @@
-#import <Foundation/Foundation.h>
+// ============================================================================
+// ModMenuViewController.h
+// ============================================================================
+
 #import <UIKit/UIKit.h>
-#import <CoreGraphics/CoreGraphics.h>
-#import <QuartzCore/QuartzCore.h>
-#import <mach/mach.h>
-#import <mach/vm_map.h>
+
+@class _F1oatM3nuV;
+
+@interface ModMenuViewController : UIViewController
+
+// Properties
+@property (nonatomic, strong) UIColor *currentThemeColor;
+@property (nonatomic, strong) _F1oatM3nuV *floatingMenu;
+@property (nonatomic, strong) NSArray *menuTabs;
+@property (nonatomic, assign) BOOL isMenuOpen;
+@property (nonatomic, assign) BOOL isBackendStarted;
+
+// Feature buttons
+@property (nonatomic, strong) UIButton *ghostButtonView;
+@property (nonatomic, strong) UISwitch *ghostSwitch;
+@property (nonatomic, strong) UIButton *teleVIPButtonView;
+@property (nonatomic, strong) UISwitch *teleVIPSwitch;
+@property (nonatomic, strong) UIButton *undergroundButtonView;
+@property (nonatomic, strong) UISwitch *undergroundSwitch;
+@property (nonatomic, strong) UIButton *aiTelekillButtonView;
+@property (nonatomic, strong) UISwitch *aiTelekillSwitch;
+@property (nonatomic, strong) UIButton *ninjaRunButtonView;
+@property (nonatomic, strong) UISwitch *ninjaRunSwitch;
+@property (nonatomic, strong) UIButton *flyAlturaButtonView;
+@property (nonatomic, strong) UISwitch *flyAlturaSwitch;
+@property (nonatomic, strong) UIButton *flyNormalButtonView;
+@property (nonatomic, strong) UISwitch *flyNormalSwitch;
+@property (nonatomic, strong) UIButton *flyv2ButtonView;
+@property (nonatomic, strong) UISwitch *flyv2Switch;
+@property (nonatomic, strong) UIButton *savePosButtonView;
+@property (nonatomic, strong) UISwitch *savePosSwitch;
+@property (nonatomic, strong) UIButton *goTeleportStateButtonView;
+@property (nonatomic, strong) UISwitch *goTeleportStateSwitch;
+@property (nonatomic, strong) UIButton *stopMoveButtonView;
+@property (nonatomic, strong) UISwitch *stopMoveSwitch;
+@property (nonatomic, strong) UIButton *horizontalSpeedButtonView;
+@property (nonatomic, strong) UISwitch *horizontalSpeedSwitch;
+@property (nonatomic, strong) UIButton *clearAntiuButtonView;
+@property (nonatomic, strong) UISwitch *clearAntiuSwitch;
+@property (nonatomic, strong) UIButton *magnetKillButtonView;
+@property (nonatomic, strong) UISwitch *magnetKillSwitch;
+@property (nonatomic, strong) UIButton *markTeleportButtonView;
+@property (nonatomic, strong) UISwitch *markTeleportSwitch;
+
+// FPS
+@property (nonatomic, strong) NSTimer *fpsTimer;
+@property (nonatomic, assign) NSInteger frameCount;
+@property (nonatomic, assign) double currentFPS;
+
+// UI Elements
+@property (nonatomic, strong) UISlider *slider;
+@property (nonatomic, strong) UISwitch *firstSwitch;
+@property (nonatomic, strong) UISwitch *secondSwitch;
+@property (nonatomic, strong) UIButton *submitButton;
+
+// Methods
+- (void)setupBackend;
+- (void)setupUI;
+- (void)initializeMenu;
+- (void)viewDidLoad;
+- (void)setupDisplayLink;
+- (void)startFPSTimer;
+- (void)updateFrame;
+- (void)dealloc;
+
+- (void)createAllFeatureButtons;
+- (void)removeAllFeatureButtons;
+- (void)updateUIButtonVisibility;
+- (void)updateFeatureButtonTheme:(UIButton *)button;
+- (void)updateAllFeatureButtonThemes;
+- (void)createFloatingMenu;
+- (void)showMenu;
+- (void)hideMenu;
+- (void)toggleMenu;
+
+// State management
+- (void)saveUIState;
+- (void)loadUIState;
+- (void)saveMenuState;
+- (void)loadMenuState;
+- (id)uiStateJSONPath;
+- (id)readUIStateJSON;
+- (void)writeUIStateJSON:(id)data;
+- (id)serializeColor:(UIColor *)color;
+- (id)deserializeColor:(id)colorData fallback:(UIColor *)fallback;
+- (UIColor *)loadSavedThemeColor;
+
+// Feature actions
+- (void)ghostSwitchChanged:(UISwitch *)sender;
+- (void)teleVIPSwitchChanged:(UISwitch *)sender;
+- (void)undergroundSwitchChanged:(UISwitch *)sender;
+- (void)aiTelekillSwitchChanged:(UISwitch *)sender;
+- (void)ninjaRunSwitchChanged:(UISwitch *)sender;
+- (void)flyAlturaSwitchChanged:(UISwitch *)sender;
+- (void)flyNormalSwitchChanged:(UISwitch *)sender;
+- (void)flyv2SwitchChanged:(UISwitch *)sender;
+- (void)savePosSwitchChanged:(UISwitch *)sender;
+- (void)goTeleportStateSwitchChanged:(UISwitch *)sender;
+- (void)stopMoveSwitchChanged:(UISwitch *)sender;
+- (void)horizontalSpeedSwitchChanged:(UISwitch *)sender;
+- (void)clearAntiuSwitchChanged:(UISwitch *)sender;
+- (void)magnetKillSwitchChanged:(UISwitch *)sender;
+- (void)markTeleportSwitchChanged:(UISwitch *)sender;
+
+// Toggle visibility
+- (void)toggleShowGhostUI:(UISwitch *)sender;
+- (void)toggleShowTeleVIPUI:(UISwitch *)sender;
+- (void)toggleShowUndergroundUI:(UISwitch *)sender;
+- (void)toggleShowAITelekillUI:(UISwitch *)sender;
+- (void)toggleShowNinjaRunUI:(UISwitch *)sender;
+- (void)toggleShowFlyAlturaUI:(UISwitch *)sender;
+- (void)toggleUIFlyNormal:(UISwitch *)sender;
+- (void)toggleShowFlyv2UI:(UISwitch *)sender;
+- (void)toggleShowSavePosUI:(UISwitch *)sender;
+- (void)toggleShowGoTeleportStateUI:(UISwitch *)sender;
+- (void)toggleShowStopMoveUI:(UISwitch *)sender;
+- (void)toggleShowHorizontalSpeedUI:(UISwitch *)sender;
+- (void)toggleShowClearAntiuUI:(UISwitch *)sender;
+- (void)toggleShowMagnetKillUI:(UISwitch *)sender;
+- (void)toggleShowMarkTeleportUI:(UISwitch *)sender;
+
+// Protection
+- (void)protectAllFeatureButtons;
+- (void)unprotectAllFeatureButtons;
+- (void)screenCaptureStatusChanged:(NSNotification *)notification;
+- (void)toggleStreamMode:(UISwitch *)sender;
+
+// Gestures
+- (void)addMasterToggleGesture;
+- (void)toggleMasterVisibility:(UITapGestureRecognizer *)gesture;
+- (void)handleFeatureDrag:(UIPanGestureRecognizer *)gesture;
+
+// Button helpers
+- (id)createFeatureButton:(NSString *)title withTag:(NSInteger)tag;
+- (id)createFeatureSwitchContainer;
+- (CGPoint)loadButtonPosition:(NSInteger)tag defaultX:(CGFloat)defaultX defaultY:(CGFloat)defaultY;
+- (void)saveButtonPosition:(UIButton *)button;
+- (void)setAllButtonsVisible:(BOOL)visible;
+
+// Theme
+- (UIColor *)accentColor;
+- (UIColor *)textColor;
+- (UIColor *)glowColor;
+- (UIColor *)pillColor;
+- (UIColor *)checkboxOffColor;
+
+// Settings
+- (NSString *)settingsFilePath;
+- (void)loadResolutionAndLineOriginFromSettingsFile;
+
+// Menu building
+- (NSArray *)buildMenuTabs;
+
+// Class methods
++ (void)toggleMenuFromFloatingButton;
+
+@end
+
+// ============================================================================
+// ModMenuViewController.m
+// ============================================================================
+
+#import "ModMenuViewController.h"
+#import "_F1oatM3nuV.h"
 #import <sys/sysctl.h>
-#import <sys/types.h>
-#import <sys/stat.h>
-#import <sys/socket.h>
-#import <netinet/in.h>
-#import <arpa/inet.h>
-#import <zlib.h>
-#import <CommonCrypto/CommonCrypto.h>
-#import <AVFoundation/AVFoundation.h>
-#import <CoreLocation/CoreLocation.h>
-#import <MapKit/MapKit.h>
-#import <WebKit/WebKit.h>
-#import <SceneKit/SceneKit.h>
-#import <SpriteKit/SpriteKit.h>
-#import <Metal/Metal.h>
-#import <OpenGLES/ES3/gl.h>
-#import <OpenGLES/ES3/glext.h>
 
-// ============ COMPRESSED DATA (dummy) ============
-// Tạo nhiều dữ liệu giả để tăng dung lượng
-static const unsigned char dummyData[] = {
-    0xFF, 0x00, 0xAA, 0x55, 0xFF, 0x00, 0xAA, 0x55,
-    0xFF, 0x00, 0xAA, 0x55, 0xFF, 0x00, 0xAA, 0x55,
-    0xFF, 0x00, 0xAA, 0x55, 0xFF, 0x00, 0xAA, 0x55,
-    0xFF, 0x00, 0xAA, 0x55, 0xFF, 0x00, 0xAA, 0x55,
-    0xFF, 0x00, 0xAA, 0x55, 0xFF, 0x00, 0xAA, 0x55,
-    0xFF, 0x00, 0xAA, 0x55, 0xFF, 0x00, 0xAA, 0x55,
-    0xFF, 0x00, 0xAA, 0x55, 0xFF, 0x00, 0xAA, 0x55,
-    0xFF, 0x00, 0xAA, 0x55, 0xFF, 0x00, 0xAA, 0x55,
-    // 50kb dummy data
-};
+// ============================================================================
+// Global Variables (from decompilation)
+// ============================================================================
 
-// ============ DUMMY FUNCTIONS (tăng dung lượng) ============
+// Feature enable/disable
+static char byte_B2D5C = 1;
+static char byte_B2D7C = 0;        // Ghost
+static char byte_B2D82 = 0;        // TeleVIP
+static char byte_B2D86 = 0;        // Underground Kill
+static char byte_B2D8D = 0;        // AI Telekill
+static char byte_B2D4A = 0;        // Ninja Run
+static char byte_B2D9B = 0;        // Fly Altura
+static char byte_B2D9C = 0;        // Fly Normal
+static char byte_B3A7E = 0;        // Fly Altura Switch
+static char byte_B3B55 = 0;        // Fly Normal Switch
+static char byte_B3B14 = 0;        // Flyv2 Switch
+static char byte_B3B0C = 0;        // Save Pos Switch
+static char byte_B3B0E = 0;        // Go Teleport State Switch
+static char byte_B3AF8 = 0;        // Stop Move Switch
+static char byte_B3A7F = 0;        // Horizontal Speed Switch
+static char byte_B3B0A = 0;        // Clear Antiu Switch
+static char byte_B3AF5 = 0;        // Clear Antiu (also aimkill)
+static char byte_B2E2C = 0;        // Magnet Kill Switch
+static char byte_B3B0F = 0;        // Mark Teleport Switch
 
-// 1. Crypto functions
-static void dummy_crypto_operations() {
-    unsigned char key[32] = {0};
-    unsigned char iv[16] = {0};
-    unsigned char input[1024] = {0};
-    unsigned char output[1024] = {0};
-    size_t outLen = 0;
+// UI visibility
+static char byte_B2D98 = 1;        // Show Ghost UI
+static char byte_B2DC5 = 1;        // Show TeleVIP UI
+static char byte_B2DD4 = 1;        // Show Underground UI
+static char byte_B2D64 = 1;        // Show AI Telekill UI
+static char byte_B2D85 = 1;        // Show Ninja Run UI
+static char byte_B3358 = 1;        // Show Go Teleport State UI
+static char byte_B3359 = 1;        // Show Stop Move UI
+static char byte_B335A = 1;        // Show Horizontal Speed UI
+static char byte_B2E24 = 1;        // Show Save Pos UI
+static char byte_B2E25 = 1;        // Show Clear Antiu UI
+static char byte_B2E2D = 1;        // Show Magnet Kill UI
+static char byte_B335C = 1;        // Show Mark Teleport UI
+static char byte_B335B = 1;        // Show Flyv2 UI
+static char byte_B335D = 1;        // Show all buttons
+
+// ESP settings
+static char byte_B2DD5 = 0;        // Box
+static char byte_B2D7B = 0;        // Lines
+static char byte_B2DEE = 0;        // Skeleton
+static char byte_B2DEB = 0;        // Health
+static char byte_B2DEC = 0;        // Distance
+static char byte_B2DEA = 0;        // Name
+static char byte_B2DE9 = 0;        // Outline
+static char byte_B2E26 = 0;        // Glow
+static char byte_B2E08 = 0;        // Enemy Count
+static char byte_B2CE8 = 0;        // Blood Visibility
+
+// Aimbot settings
+static char byte_B3B71 = 0;        // Aimbot
+static char byte_B2E2E = 0;        // Aimkill
+static char byte_B2D5D = 0;        // AutoFire
+static char byte_B3B74 = 0;        // Speed Hack
+static char byte_B2D99 = 0;        // Up Player
+static char byte_B2D7A = 0;        // Telekill
+static char byte_B2D7F = 0;        // Underground Kill2
+static char byte_B3B73 = 0;        // Reset Guest
+static char byte_B2D4B = 0;        // Ninja Run Speed (slow)
+static char byte_B2D4C = 0;        // Ninja Run Speed (fast)
+static char byte_B3A83 = 0;        // PhyxState
+static char byte_B3B12 = 0;        // Fast
+static char byte_B3B54 = 0;        // Mideum
+static char byte_B3AF2 = 0;        // Swap Weapon
+static char byte_B3A81 = 0;        // Second Phase
+static char byte_B3A82 = 0;        // First Phase
+static char byte_B2E1F = 0;        // Aimsilent
+static char byte_B3AF6 = 0;        // AimAssist Rotation
+static char byte_B3AF7 = 0;        // Damage Reflect
+static char byte_B3AF4 = 0;        // Ignore Wall
+
+// Integer settings
+static int dword_B2CD4 = 5;        // Take damage timer min
+static int dword_B2CD8 = 120;      // Take damage timer max
+static float dword_B2CE4 = 8.0;    // Go teleport state radius
+static float dword_B2D60 = 1.0;    // Aim FOV
+static int dword_B39D0 = 0;        // Line Origin
+static int dword_B3B58 = 0;        // Blood Type
+static int dword_B3B5C = 0;        // Target Priority
+static int dword_B2D74 = 0;        // Trigger When
+static int dword_B39DC = 0;        // Target Bone
+
+// Resolution settings
+static char byte_B2CC4 = 0;        // Resolution Fullscreen
+static int dword_B2CC8 = 120;      // Preferred Refresh Rate
+static char byte_B2CCC = 0;        // Reset Resolution On Open
+static int dword_B39D4 = 0;        // Resolution Width
+static int dword_B39D8 = 0;        // Resolution Height
+
+// Protection
+static char byte_B3B72 = 0;        // Stream Mode
+
+// ============================================================================
+// Implementation
+// ============================================================================
+
+@implementation ModMenuViewController
+
+#pragma mark - Lifecycle
+
+- (void)viewDidLoad {
+    [super viewDidLoad];
+    [self setupBackend];
+}
+
+- (void)setupBackend {
+    if (!self.isBackendStarted) {
+        self.isBackendStarted = YES;
+        
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 2 * NSEC_PER_SEC), dispatch_get_main_queue(), ^{
+            byte_B2D5C = 1;
+        });
+        
+        [self setupDisplayLink];
+        [self startFPSTimer];
+    }
+}
+
+- (void)setupUI {
+    [self loadUIState];
     
-    CCCryptorRef cryptor;
-    CCCryptorCreate(kCCEncrypt, kCCAlgorithmAES, kCCOptionPKCS7Padding,
-                    key, sizeof(key), iv, &cryptor);
-    CCCryptorUpdate(cryptor, input, sizeof(input), output, sizeof(output), &outLen);
-    CCCryptorFinal(cryptor, output, sizeof(output), &outLen);
-    CCCryptorRelease(cryptor);
-}
-
-// 2. Compression functions
-static void dummy_compression() {
-    unsigned char input[4096] = {0};
-    unsigned char output[4096] = {0};
-    z_stream stream = {0};
-    deflateInit(&stream, Z_DEFAULT_COMPRESSION);
-    stream.next_in = input;
-    stream.avail_in = sizeof(input);
-    stream.next_out = output;
-    stream.avail_out = sizeof(output);
-    deflate(&stream, Z_FINISH);
-    deflateEnd(&stream);
-}
-
-// 3. Network functions
-static void dummy_network() {
-    int sock = socket(AF_INET, SOCK_STREAM, 0);
-    struct sockaddr_in addr;
-    addr.sin_family = AF_INET;
-    addr.sin_port = htons(8080);
-    inet_pton(AF_INET, "127.0.0.1", &addr.sin_addr);
-    connect(sock, (struct sockaddr*)&addr, sizeof(addr));
-    close(sock);
-}
-
-// 4. File I/O functions
-static void dummy_file_io() {
-    const char *path = "/tmp/dummy.txt";
-    FILE *fp = fopen(path, "w+");
-    if (fp) {
-        fprintf(fp, "Dummy data - %s", "Expanded content");
-        fseek(fp, 0, SEEK_END);
-        long size = ftell(fp);
-        rewind(fp);
-        char *buffer = (char*)malloc(size + 1);
-        fread(buffer, 1, size, fp);
-        buffer[size] = '\0';
-        free(buffer);
-        fclose(fp);
-        remove(path);
-    }
-}
-
-// 5. JSON parsing dummy
-static void dummy_json_parse() {
-    NSString *json = @"{\"data\":[{\"id\":1,\"name\":\"test\"},{\"id\":2,\"name\":\"test2\"}]}";
-    NSData *data = [json dataUsingEncoding:NSUTF8StringEncoding];
-    NSError *error = nil;
-    NSDictionary *dict = [NSJSONSerialization JSONObjectWithData:data options:0 error:&error];
-    if (dict) {
-        NSArray *array = dict[@"data"];
-        for (NSDictionary *item in array) {
-            NSNumber *num = item[@"id"];
-            NSString *name = item[@"name"];
-            NSLog(@"ID: %@, Name: %@", num, name);
-        }
-    }
-}
-
-// ============ FIX MISSING FUNCTIONS ============
-static inline kern_return_t mach_vm_write(vm_map_t task, mach_vm_address_t address, vm_offset_t data, mach_msg_type_number_t size) {
-    return vm_write(task, address, data, size);
-}
-
-static inline kern_return_t mach_vm_read_overwrite(vm_map_t task, mach_vm_address_t address, mach_vm_size_t size, mach_vm_address_t data, mach_vm_size_t *outsize) {
-    vm_size_t temp_outsize = (vm_size_t)*outsize;
-    kern_return_t kr = vm_read_overwrite(task, address, (vm_size_t)size, data, &temp_outsize);
-    *outsize = (mach_vm_size_t)temp_outsize;
-    return kr;
-}
-
-static inline void sys_icache_invalidate(void *addr, size_t len) {
-    __asm__ volatile("icache ivau, %0" : : "r"(addr));
-}
-
-// ============ ENTITY INFO CLASS ============
-@interface EntityInfo : NSObject
-@property (nonatomic, assign) float distance;
-@property (nonatomic, assign) void *entity;
-@property (nonatomic, strong) NSString *name;
-@property (nonatomic, assign) int health;
-@property (nonatomic, assign) int maxHealth;
-@property (nonatomic, assign) float positionX;
-@property (nonatomic, assign) float positionY;
-@property (nonatomic, assign) float positionZ;
-@property (nonatomic, assign) float rotation;
-@property (nonatomic, assign) BOOL isAlive;
-@property (nonatomic, assign) BOOL isVisible;
-@property (nonatomic, assign) int teamId;
-@property (nonatomic, strong) NSString *playerName;
-@end
-
-@implementation EntityInfo
-@end
-
-// ============ FEATURE STATE ============
-static inline bool get_feature_state(const char *feature) {
-    return true;
-}
-
-// ============ DUMMY CLASSES (tăng dung lượng) ============
-
-@interface Vector3 : NSObject
-@property (nonatomic, assign) float x;
-@property (nonatomic, assign) float y;
-@property (nonatomic, assign) float z;
-+ (instancetype)vectorWithX:(float)x y:(float)y z:(float)z;
-- (float)length;
-- (float)distanceTo:(Vector3 *)other;
-- (Vector3 *)normalized;
-- (Vector3 *)add:(Vector3 *)other;
-- (Vector3 *)subtract:(Vector3 *)other;
-- (Vector3 *)multiply:(float)scalar;
-- (Vector3 *)cross:(Vector3 *)other;
-- (float)dot:(Vector3 *)other;
-@end
-
-@implementation Vector3
-+ (instancetype)vectorWithX:(float)x y:(float)y z:(float)z {
-    Vector3 *v = [[Vector3 alloc] init];
-    v.x = x;
-    v.y = y;
-    v.z = z;
-    return v;
-}
-- (float)length {
-    return sqrtf(self.x * self.x + self.y * self.y + self.z * self.z);
-}
-- (float)distanceTo:(Vector3 *)other {
-    float dx = self.x - other.x;
-    float dy = self.y - other.y;
-    float dz = self.z - other.z;
-    return sqrtf(dx * dx + dy * dy + dz * dz);
-}
-- (Vector3 *)normalized {
-    float len = [self length];
-    if (len > 0) {
-        return [Vector3 vectorWithX:self.x/len y:self.y/len z:self.z/len];
-    }
-    return [Vector3 vectorWithX:0 y:0 z:0];
-}
-- (Vector3 *)add:(Vector3 *)other {
-    return [Vector3 vectorWithX:self.x + other.x y:self.y + other.y z:self.z + other.z];
-}
-- (Vector3 *)subtract:(Vector3 *)other {
-    return [Vector3 vectorWithX:self.x - other.x y:self.y - other.y z:self.z - other.z];
-}
-- (Vector3 *)multiply:(float)scalar {
-    return [Vector3 vectorWithX:self.x * scalar y:self.y * scalar z:self.z * scalar];
-}
-- (Vector3 *)cross:(Vector3 *)other {
-    return [Vector3 vectorWithX:self.y * other.z - self.z * other.y
-                              y:self.z * other.x - self.x * other.z
-                              z:self.x * other.y - self.y * other.x];
-}
-- (float)dot:(Vector3 *)other {
-    return self.x * other.x + self.y * other.y + self.z * other.z;
-}
-@end
-
-// ============ FFHACK MENU ============
-@interface FFHackMenu : NSObject
-+ (void)show;
-+ (void)hide;
-+ (void)toggle;
-+ (void)updateFrame;
-+ (void)addMenuItem:(NSString *)title action:(SEL)action;
-+ (void)removeAllItems;
-+ (void)setBackgroundColor:(UIColor *)color;
-+ (void)setOpacity:(CGFloat)opacity;
-+ (void)setPosition:(CGPoint)position;
-+ (void)setSize:(CGSize)size;
-+ (BOOL)isVisible;
-@end
-
-@implementation FFHackMenu
-
-static UIWindow *menuWindow = nil;
-static CGFloat screen_width = 0;
-static CGFloat screen_height = 0;
-static NSMutableArray *menuItems = nil;
-static BOOL isMenuVisible = NO;
-
-+ (void)initialize {
-    if (self == [FFHackMenu class]) {
-        menuItems = [[NSMutableArray alloc] init];
-    }
-}
-
-+ (void)show {
-    if (isMenuVisible) return;
+    UIColor *savedColor = [self loadSavedThemeColor];
+    self.currentThemeColor = savedColor ?: [UIColor colorWithRed:0.2 green:0.6 blue:0.9 alpha:1.0];
     
-    dispatch_async(dispatch_get_main_queue(), ^{
-        if (menuWindow) return;
-        
-        // Fix deprecated UIScreen
-        if (@available(iOS 26.0, *)) {
-            UIWindowScene *scene = (UIWindowScene *)[UIApplication sharedApplication].connectedScenes.allObjects.firstObject;
-            if ([scene isKindOfClass:[UIWindowScene class]]) {
-                screen_width = scene.screen.bounds.size.width;
-                screen_height = scene.screen.bounds.size.height;
-            }
-        } else {
-            screen_width = [UIScreen mainScreen].bounds.size.width;
-            screen_height = [UIScreen mainScreen].bounds.size.height;
-        }
-        
-        menuWindow = [[UIWindow alloc] initWithFrame:CGRectMake(0, 0, 250, 400)];
-        menuWindow.backgroundColor = [UIColor colorWithWhite:0.0 alpha:0.85];
-        menuWindow.windowLevel = UIWindowLevelAlert + 1;
-        menuWindow.layer.cornerRadius = 12;
-        menuWindow.layer.masksToBounds = YES;
-        menuWindow.hidden = NO;
-        
-        UIViewController *vc = [[UIViewController alloc] init];
-        vc.view.backgroundColor = [UIColor clearColor];
-        menuWindow.rootViewController = vc;
-        
-        // Title
-        UILabel *titleLabel = [[UILabel alloc] initWithFrame:CGRectMake(0, 10, 250, 30)];
-        titleLabel.text = @"⚡ FFHack Pro v3.0";
-        titleLabel.textColor = [UIColor colorWithRed:0.0 green:1.0 blue:0.0 alpha:1.0];
-        titleLabel.textAlignment = NSTextAlignmentCenter;
-        titleLabel.font = [UIFont boldSystemFontOfSize:16];
-        [vc.view addSubview:titleLabel];
-        
-        // Separator line
-        UIView *line = [[UIView alloc] initWithFrame:CGRectMake(10, 45, 230, 1)];
-        line.backgroundColor = [UIColor grayColor];
-        [vc.view addSubview:line];
-        
-        // Menu items
-        NSArray *items = @[
-            @"🏹 Aimbot",
-            @"👁️ ESP",
-            @"🪄 Fly Hack",
-            @"💉 God Mode",
-            @"🔫 Infinite Ammo",
-            @"⚡ Speed Hack",
-            @"🛡️ Wall Hack",
-            @"🎯 No Recoil",
-            @"📡 Radar Hack",
-            @"🔮 Unlock All"
-        ];
-        
-        for (int i = 0; i < items.count; i++) {
-            UIButton *btn = [UIButton buttonWithType:UIButtonTypeSystem];
-            btn.frame = CGRectMake(10, 55 + i * 32, 230, 28);
-            [btn setTitle:items[i] forState:UIControlStateNormal];
-            [btn setTitleColor:[UIColor whiteColor] forState:UIControlStateNormal];
-            btn.contentHorizontalAlignment = UIControlContentHorizontalAlignmentLeft;
-            btn.titleLabel.font = [UIFont systemFontOfSize:14];
-            btn.tag = 1000 + i;
-            [btn addTarget:self action:@selector(menuItemTapped:) forControlEvents:UIControlEventTouchUpInside];
-            [vc.view addSubview:btn];
-            
-            // Toggle indicator
-            UILabel *indicator = [[UILabel alloc] initWithFrame:CGRectMake(200, 55 + i * 32, 30, 28)];
-            indicator.text = @"●";
-            indicator.textColor = [UIColor greenColor];
-            indicator.font = [UIFont systemFontOfSize:14];
-            indicator.tag = 2000 + i;
-            [vc.view addSubview:indicator];
-        }
-        
-        // Close button
-        UIButton *closeBtn = [UIButton buttonWithType:UIButtonTypeSystem];
-        closeBtn.frame = CGRectMake(10, 55 + items.count * 32 + 10, 230, 35);
-        [closeBtn setTitle:@"✕ Close Menu" forState:UIControlStateNormal];
-        [closeBtn setTitleColor:[UIColor redColor] forState:UIControlStateNormal];
-        closeBtn.titleLabel.font = [UIFont boldSystemFontOfSize:15];
-        [closeBtn addTarget:self action:@selector(hide) forControlEvents:UIControlEventTouchUpInside];
-        [vc.view addSubview:closeBtn];
-        
-        isMenuVisible = YES;
-        NSLog(@"FFHackMenu shown");
-    });
-}
-
-+ (void)hide {
-    dispatch_async(dispatch_get_main_queue(), ^{
-        if (menuWindow) {
-            menuWindow.hidden = YES;
-            menuWindow = nil;
-        }
-        isMenuVisible = NO;
-        NSLog(@"FFHackMenu hidden");
-    });
-}
-
-+ (void)toggle {
-    if (isMenuVisible) {
-        [self hide];
+    [self loadResolutionAndLineOriginFromSettingsFile];
+    
+    // Resolution settings
+    if (byte_B2CCC) {
+        UIScreen *screen = [UIScreen mainScreen];
+        CGRect nativeBounds = screen.nativeBounds;
+        dword_B39D4 = (int)nativeBounds.size.width;
+        dword_B39D8 = (int)nativeBounds.size.height;
+        byte_B2CC4 = 1;
+        dword_B2CC8 = 120;
     } else {
-        [self show];
+        if (dword_B39D4 <= 0 || dword_B39D8 <= 0) {
+            UIScreen *screen = [UIScreen mainScreen];
+            CGRect nativeBounds = screen.nativeBounds;
+            dword_B39D4 = (int)nativeBounds.size.width;
+            dword_B39D8 = (int)nativeBounds.size.height;
+        }
+        if (dword_B2CC8 <= 0) {
+            dword_B2CC8 = 120;
+        }
     }
-}
-
-+ (void)updateFrame {
-    if (menuWindow) {
-        CGRect frame = menuWindow.frame;
-        menuWindow.frame = frame;
-    }
-}
-
-+ (void)menuItemTapped:(UIButton *)sender {
-    NSInteger index = sender.tag - 1000;
-    UILabel *indicator = (UILabel *)[menuWindow.rootViewController.view viewWithTag:2000 + index];
     
-    if (indicator) {
-        if ([indicator.text isEqualToString:@"●"]) {
-            indicator.text = @"○";
-            indicator.textColor = [UIColor redColor];
-            NSLog(@"Feature %ld disabled", (long)index);
-        } else {
-            indicator.text = @"●";
-            indicator.textColor = [UIColor greenColor];
-            NSLog(@"Feature %ld enabled", (long)index);
+    [self setAllButtonsVisible:byte_B335D];
+    [self addMasterToggleGesture];
+    [self createFloatingMenu];
+    [self loadMenuState];
+    
+    // Screen capture notification
+    [[NSNotificationCenter defaultCenter] addObserver:self
+                                             selector:@selector(screenCaptureStatusChanged:)
+                                                 name:UIScreenCapturedDidChangeNotification
+                                               object:nil];
+    
+    // Save state on app lifecycle events
+    [[NSNotificationCenter defaultCenter] addObserver:self
+                                             selector:@selector(saveUIState)
+                                                 name:UIApplicationWillResignActiveNotification
+                                               object:nil];
+    
+    [[NSNotificationCenter defaultCenter] addObserver:self
+                                             selector:@selector(saveUIState)
+                                                 name:UIApplicationDidEnterBackgroundNotification
+                                               object:nil];
+    
+    [[NSNotificationCenter defaultCenter] addObserver:self
+                                             selector:@selector(saveUIState)
+                                                 name:UIApplicationWillTerminateNotification
+                                               object:nil];
+}
+
+- (void)initializeMenu {
+    [self setupBackend];
+}
+
+- (void)setupDisplayLink {
+    CADisplayLink *displayLink = [CADisplayLink displayLinkWithTarget:self selector:@selector(updateFrame)];
+    [displayLink addToRunLoop:[NSRunLoop mainRunLoop] forMode:NSRunLoopCommonModes];
+}
+
+- (void)startFPSTimer {
+    __weak typeof(self) weakSelf = self;
+    self.fpsTimer = [NSTimer scheduledTimerWithTimeInterval:1.0 repeats:YES block:^(NSTimer *timer) {
+        weakSelf.currentFPS = weakSelf.frameCount;
+        weakSelf.frameCount = 0;
+    }];
+}
+
+- (void)updateFrame {
+    if (!byte_B2D5C) return;
+    // Game state updates would go here
+    self.frameCount++;
+}
+
+- (void)dealloc {
+    [self.fpsTimer invalidate];
+    [[NSNotificationCenter defaultCenter] removeObserver:self];
+}
+
+#pragma mark - Feature Button Management
+
+- (void)createAllFeatureButtons {
+    UIWindow *keyWindow = [UIApplication sharedApplication].keyWindow;
+    if (!keyWindow) return;
+    
+    [self removeAllFeatureButtons];
+    if (!byte_B335D) return;
+    
+    UIScreen *screen = [UIScreen mainScreen];
+    CGFloat screenWidth = screen.bounds.size.width;
+    CGFloat screenHeight = screen.bounds.size.height;
+    CGFloat defaultX = (screenWidth - 90.0) * 0.5;
+    CGFloat defaultY = (screenHeight - 90.0) * 0.5;
+    
+    NSArray *buttonConfigs = @[
+        @{@"title": @"GHOST", @"tag": @88801, @"var": @(byte_B2D98), @"sel": @"ghostSwitchChanged:"},
+        @{@"title": @"TELE VIP", @"tag": @88802, @"var": @(byte_B2DC5), @"sel": @"teleVIPSwitchChanged:"},
+        @{@"title": @"KILL", @"tag": @88803, @"var": @(byte_B2DD4), @"sel": @"undergroundSwitchChanged:"},
+        @{@"title": @"AI KILL", @"tag": @88804, @"var": @(byte_B2D64), @"sel": @"aiTelekillSwitchChanged:"},
+        @{@"title": @"NINJA", @"tag": @88805, @"var": @(byte_B2D85), @"sel": @"ninjaRunSwitchChanged:"},
+        @{@"title": @"FLY ALT", @"tag": @88806, @"var": @(byte_B2D9B), @"sel": @"flyAlturaSwitchChanged:"},
+        @{@"title": @"Invisible", @"tag": @88807, @"var": @(byte_B2D9C), @"sel": @"flyNormalSwitchChanged:"},
+        @{@"title": @"Flyv2", @"tag": @88816, @"var": @(byte_B335B), @"sel": @"flyv2SwitchChanged:"},
+        @{@"title": @"FlyGLD", @"tag": @88808, @"var": @(byte_B2E24), @"sel": @"savePosSwitchChanged:"},
+        @{@"title": @"GO TELEPORT STATE", @"tag": @88813, @"var": @(byte_B3358), @"sel": @"goTeleportStateSwitchChanged:"},
+        @{@"title": @"STOP MOVE", @"tag": @88814, @"var": @(byte_B3359), @"sel": @"stopMoveSwitchChanged:"},
+        @{@"title": @"HORIZ SPEED", @"tag": @88815, @"var": @(byte_B335A), @"sel": @"horizontalSpeedSwitchChanged:"},
+        @{@"title": @"Aimkill", @"tag": @88809, @"var": @(byte_B2E25), @"sel": @"clearAntiuSwitchChanged:"},
+        @{@"title": @"MAGNET KILL", @"tag": @88810, @"var": @(byte_B2E2D), @"sel": @"magnetKillSwitchChanged:"},
+        @{@"title": @"MARK TP", @"tag": @88817, @"var": @(byte_B335C), @"sel": @"markTeleportSwitchChanged:"}
+    ];
+    
+    for (NSDictionary *config in buttonConfigs) {
+        if (![config[@"var"] boolValue]) continue;
+        
+        NSInteger tag = [config[@"tag"] integerValue];
+        NSString *title = config[@"title"];
+        NSString *selector = config[@"sel"];
+        
+        CGPoint position = [self loadButtonPosition:tag defaultX:defaultX defaultY:defaultY];
+        
+        UIButton *button = [self createFeatureButton:title withTag:tag];
+        button.frame = CGRectMake(position.x, position.y, 90, 90);
+        
+        UILabel *titleLabel = [button viewWithTag:200];
+        titleLabel.frame = CGRectMake(0, 5, 90, 16);
+        
+        UIView *switchContainer = [self createFeatureSwitchContainer];
+        UISwitch *switchControl = [switchContainer viewWithTag:400];
+        switchControl.frame = CGRectMake((90 - switchContainer.frame.size.width) / 2, 
+                                         titleLabel.frame.origin.y + titleLabel.frame.size.height + 3,
+                                         switchContainer.frame.size.width,
+                                         switchContainer.frame.size.height);
+        [button addSubview:switchContainer];
+        
+        switch (tag) {
+            case 88801: // Ghost
+                switchControl.on = byte_B2D7C;
+                [switchControl addTarget:self action:NSSelectorFromString(selector) forControlEvents:UIControlEventValueChanged];
+                self.ghostButtonView = button;
+                self.ghostSwitch = switchControl;
+                break;
+            case 88802: // TeleVIP
+                switchControl.on = byte_B2D82;
+                [switchControl addTarget:self action:NSSelectorFromString(selector) forControlEvents:UIControlEventValueChanged];
+                self.teleVIPButtonView = button;
+                self.teleVIPSwitch = switchControl;
+                break;
+            case 88803: // Underground
+                switchControl.on = byte_B2D86;
+                [switchControl addTarget:self action:NSSelectorFromString(selector) forControlEvents:UIControlEventValueChanged];
+                self.undergroundButtonView = button;
+                self.undergroundSwitch = switchControl;
+                break;
+            case 88804: // AI Telekill
+                switchControl.on = byte_B2D8D;
+                [switchControl addTarget:self action:NSSelectorFromString(selector) forControlEvents:UIControlEventValueChanged];
+                self.aiTelekillButtonView = button;
+                self.aiTelekillSwitch = switchControl;
+                break;
+            case 88805: // Ninja Run
+                switchControl.on = byte_B2D4A;
+                [switchControl addTarget:self action:NSSelectorFromString(selector) forControlEvents:UIControlEventValueChanged];
+                self.ninjaRunButtonView = button;
+                self.ninjaRunSwitch = switchControl;
+                break;
+            case 88806: // Fly Altura
+                switchControl.on = 0;
+                [switchControl addTarget:self action:NSSelectorFromString(selector) forControlEvents:UIControlEventValueChanged];
+                self.flyAlturaButtonView = button;
+                self.flyAlturaSwitch = switchControl;
+                break;
+            case 88807: // Fly Normal
+                switchControl.on = byte_B3B55;
+                [switchControl addTarget:self action:NSSelectorFromString(selector) forControlEvents:UIControlEventValueChanged];
+                self.flyNormalButtonView = button;
+                self.flyNormalSwitch = switchControl;
+                break;
+            case 88808: // Save Pos
+                switchControl.on = byte_B3B0C;
+                [switchControl addTarget:self action:NSSelectorFromString(selector) forControlEvents:UIControlEventValueChanged];
+                self.savePosButtonView = button;
+                self.savePosSwitch = switchControl;
+                break;
+            case 88809: // Clear Antiu
+                switchControl.on = byte_B3B0A;
+                [switchControl addTarget:self action:NSSelectorFromString(selector) forControlEvents:UIControlEventValueChanged];
+                self.clearAntiuButtonView = button;
+                self.clearAntiuSwitch = switchControl;
+                break;
+            case 88810: // Magnet Kill
+                switchControl.on = byte_B2E2C;
+                [switchControl addTarget:self action:NSSelectorFromString(selector) forControlEvents:UIControlEventValueChanged];
+                self.magnetKillButtonView = button;
+                self.magnetKillSwitch = switchControl;
+                break;
+            case 88813: // Go Teleport State
+                switchControl.on = byte_B3B0E;
+                [switchControl addTarget:self action:NSSelectorFromString(selector) forControlEvents:UIControlEventValueChanged];
+                self.goTeleportStateButtonView = button;
+                self.goTeleportStateSwitch = switchControl;
+                break;
+            case 88814: // Stop Move
+                switchControl.on = byte_B3AF8;
+                [switchControl addTarget:self action:NSSelectorFromString(selector) forControlEvents:UIControlEventValueChanged];
+                self.stopMoveButtonView = button;
+                self.stopMoveSwitch = switchControl;
+                break;
+            case 88815: // Horizontal Speed
+                switchControl.on = byte_B3A7F;
+                [switchControl addTarget:self action:NSSelectorFromString(selector) forControlEvents:UIControlEventValueChanged];
+                self.horizontalSpeedButtonView = button;
+                self.horizontalSpeedSwitch = switchControl;
+                break;
+            case 88816: // Flyv2
+                switchControl.on = byte_B3B14;
+                [switchControl addTarget:self action:NSSelectorFromString(selector) forControlEvents:UIControlEventValueChanged];
+                self.flyv2ButtonView = button;
+                self.flyv2Switch = switchControl;
+                break;
+            case 88817: // Mark Teleport
+                switchControl.on = byte_B3B0F;
+                [switchControl addTarget:self action:NSSelectorFromString(selector) forControlEvents:UIControlEventValueChanged];
+                self.markTeleportButtonView = button;
+                self.markTeleportSwitch = switchControl;
+                break;
+        }
+        
+        UIPanGestureRecognizer *panGesture = [[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(handleFeatureDrag:)];
+        [button addGestureRecognizer:panGesture];
+        [keyWindow addSubview:button];
+    }
+}
+
+- (id)createFeatureButton:(NSString *)title withTag:(NSInteger)tag {
+    UIButton *button = [[UIButton alloc] initWithFrame:CGRectZero];
+    button.tag = tag;
+    button.backgroundColor = [UIColor clearColor];
+    button.layer.cornerRadius = 0;
+    button.clipsToBounds = NO;
+    button.layer.borderWidth = 0;
+    button.layer.shadowOpacity = 0;
+    button.layer.masksToBounds = NO;
+    
+    UILabel *label = [[UILabel alloc] initWithFrame:CGRectMake(0, 5, 90, 16)];
+    label.text = title;
+    label.font = [UIFont systemFontOfSize:10 weight:UIFontWeightBold];
+    label.textColor = [self accentColor];
+    label.textAlignment = NSTextAlignmentCenter;
+    label.tag = 200;
+    [button addSubview:label];
+    
+    return button;
+}
+
+- (id)createFeatureSwitchContainer {
+    UIView *container = [[UIView alloc] init];
+    container.backgroundColor = [UIColor clearColor];
+    container.clipsToBounds = NO;
+    
+    UISwitch *switchControl = [[UISwitch alloc] init];
+    switchControl.onTintColor = [self accentColor];
+    switchControl.thumbTintColor = [UIColor whiteColor];
+    switchControl.backgroundColor = [UIColor clearColor];
+    switchControl.clipsToBounds = NO;
+    switchControl.tag = 400;
+    
+    container.frame = CGRectMake(0, 0, 58, 39.3);
+    switchControl.frame = CGRectMake(4, 4.2, 51, 31);
+    
+    UIColor *accent = [self accentColor];
+    CGFloat r, g, b, a;
+    [accent getRed:&r green:&g blue:&b alpha:&a];
+    UIColor *borderColor = [UIColor colorWithRed:r * 0.7 green:g * 0.7 blue:b * 0.7 alpha:1.0];
+    
+    container.layer.borderWidth = 4.0;
+    container.layer.borderColor = borderColor.CGColor;
+    container.layer.cornerRadius = 19.65;
+    container.layer.shadowColor = accent.CGColor;
+    container.layer.shadowOpacity = 1.0;
+    container.layer.shadowRadius = 25.0;
+    container.layer.shadowOffset = CGSizeZero;
+    container.layer.masksToBounds = NO;
+    container.tag = 401;
+    
+    [container addSubview:switchControl];
+    return container;
+}
+
+- (void)removeAllFeatureButtons {
+    UIWindow *keyWindow = [UIApplication sharedApplication].keyWindow;
+    if (!keyWindow) return;
+    
+    NSArray *tags = @[@88801, @88802, @88803, @88804, @88805, @88806, @88807, @88808, 
+                      @88813, @88814, @88815, @88816, @88809, @88810, @88817];
+    
+    for (NSNumber *tag in tags) {
+        UIView *view = [keyWindow viewWithTag:[tag integerValue]];
+        [view removeFromSuperview];
+    }
+    
+    self.ghostButtonView = nil;
+    self.teleVIPButtonView = nil;
+    self.undergroundButtonView = nil;
+    self.aiTelekillButtonView = nil;
+    self.ninjaRunButtonView = nil;
+    self.flyAlturaButtonView = nil;
+    self.flyNormalButtonView = nil;
+    self.flyv2ButtonView = nil;
+    self.savePosButtonView = nil;
+    self.goTeleportStateButtonView = nil;
+    self.stopMoveButtonView = nil;
+    self.horizontalSpeedButtonView = nil;
+    self.clearAntiuButtonView = nil;
+    self.magnetKillButtonView = nil;
+    self.markTeleportButtonView = nil;
+}
+
+- (void)updateUIButtonVisibility {
+    [self createAllFeatureButtons];
+}
+
+- (void)updateFeatureButtonTheme:(UIButton *)button {
+    if (!button) return;
+    
+    [[button viewWithTag:5011] removeFromSuperview];
+    [[button viewWithTag:5012] removeFromSuperview];
+    
+    button.backgroundColor = [UIColor clearColor];
+    button.layer.borderWidth = 0;
+    button.layer.shadowOpacity = 0;
+    button.layer.shadowRadius = 0;
+    button.layer.borderColor = nil;
+    
+    UILabel *titleLabel = [button viewWithTag:200];
+    if (titleLabel) {
+        titleLabel.textColor = [self accentColor];
+    }
+    
+    for (UIView *subview in button.subviews) {
+        if (subview.tag == 401) {
+            UISwitch *switchControl = [subview viewWithTag:400];
+            if (switchControl) {
+                switchControl.onTintColor = [self accentColor];
+            }
+            
+            UIColor *accent = [self accentColor];
+            CGFloat r, g, b, a;
+            [accent getRed:&r green:&g blue:&b alpha:&a];
+            UIColor *borderColor = [UIColor colorWithRed:r * 0.7 green:g * 0.7 blue:b * 0.7 alpha:1.0];
+            subview.layer.borderColor = borderColor.CGColor;
+            subview.layer.shadowColor = accent.CGColor;
         }
     }
 }
 
-+ (void)addMenuItem:(NSString *)title action:(SEL)action {
-    if (title && action) {
-        [menuItems addObject:@{@"title": title, @"action": NSStringFromSelector(action)}];
+- (void)updateAllFeatureButtonThemes {
+    [self updateFeatureButtonTheme:self.ghostButtonView];
+    [self updateFeatureButtonTheme:self.teleVIPButtonView];
+    [self updateFeatureButtonTheme:self.undergroundButtonView];
+    [self updateFeatureButtonTheme:self.aiTelekillButtonView];
+    [self updateFeatureButtonTheme:self.ninjaRunButtonView];
+    [self updateFeatureButtonTheme:self.flyAlturaButtonView];
+    [self updateFeatureButtonTheme:self.flyNormalButtonView];
+    [self updateFeatureButtonTheme:self.flyv2ButtonView];
+    [self updateFeatureButtonTheme:self.savePosButtonView];
+    [self updateFeatureButtonTheme:self.goTeleportStateButtonView];
+    [self updateFeatureButtonTheme:self.stopMoveButtonView];
+    [self updateFeatureButtonTheme:self.horizontalSpeedButtonView];
+    [self updateFeatureButtonTheme:self.clearAntiuButtonView];
+    [self updateFeatureButtonTheme:self.magnetKillButtonView];
+    [self updateFeatureButtonTheme:self.markTeleportButtonView];
+}
+
+#pragma mark - Floating Menu
+
+- (void)createFloatingMenu {
+    UIWindow *keyWindow = [UIApplication sharedApplication].keyWindow;
+    if (!keyWindow) return;
+    
+    [self.floatingMenu removeFromSuperview];
+    
+    NSArray *tabs = [self buildMenuTabs];
+    self.menuTabs = tabs;
+    
+    CGFloat width = keyWindow.bounds.size.width;
+    CGFloat height = keyWindow.bounds.size.height;
+    
+    _F1oatM3nuV *menu = [[_F1oatM3nuV alloc] initWithFrame:CGRectMake((width - 340) * 0.5,
+                                                                       (height - 320) * 0.5,
+                                                                       340, 320)
+                                                       tabs:tabs];
+    menu.accentColor = [self accentColor];
+    menu.autoresizingMask = 0;
+    menu.userInteractionEnabled = YES;
+    menu.hidden = !self.isMenuOpen;
+    
+    __weak typeof(self) weakSelf = self;
+    menu.onClose = ^{
+        [weakSelf hideMenu];
+    };
+    menu.onLoadSaved = ^{
+        [weakSelf loadUIState];
+        [weakSelf.floatingMenu reloadData];
+        [weakSelf updateUIButtonVisibility];
+    };
+    menu.onItemChanged = ^(id item, NSNumber *value) {
+        [weakSelf saveUIState];
+    };
+    
+    [keyWindow addSubview:menu];
+    self.floatingMenu = menu;
+    
+    CGPoint position = [self loadButtonPosition:99998 defaultX:(width - 340) * 0.5 defaultY:(height - 320) * 0.5];
+    menu.frame = CGRectMake(position.x, position.y, 340, 320);
+    [self loadMenuState];
+}
+
+- (NSArray *)buildMenuTabs {
+    NSMutableArray *tabs = [NSMutableArray array];
+    
+    // ========================================================================
+    // ESP Tab
+    // ========================================================================
+    NSMutableArray *espItems = [NSMutableArray array];
+    
+    [espItems addObject:[_F1oatM3nuBool itemWithKey:@"Enable" title:@"Enable" getter:^BOOL{
+        return byte_B2D5C;
+    } setter:^(BOOL value) {
+        byte_B2D5C = value;
+    }]];
+    
+    [espItems addObject:[_F1oatM3nuMulti itemWithKey:@"espMulti1" titles:@[@"Box", @"Lines", @"Skeleton"] getters:^NSArray *{
+        return @[@(byte_B2DD5), @(byte_B2D7B), @(byte_B2DEE)];
+    } setters:^(NSInteger index, BOOL value) {
+        switch (index) {
+            case 0: byte_B2DD5 = value; break;
+            case 1: byte_B2D7B = value; break;
+            case 2: byte_B2DEE = value; break;
+        }
+    }]];
+    
+    [espItems addObject:[_F1oatM3nuMulti itemWithKey:@"espMulti2" titles:@[@"Health", @"Distance"] getters:^NSArray *{
+        return @[@(byte_B2DEB), @(byte_B2DEC)];
+    } setters:^(NSInteger index, BOOL value) {
+        switch (index) {
+            case 0: byte_B2DEB = value; break;
+            case 1: byte_B2DEC = value; break;
+        }
+    }]];
+    
+    [espItems addObject:[_F1oatM3nuMulti itemWithKey:@"espMulti3" titles:@[@"Name", @"Outline", @"Glow"] getters:^NSArray *{
+        return @[@(byte_B2DEA), @(byte_B2DE9), @(byte_B2E26)];
+    } setters:^(NSInteger index, BOOL value) {
+        switch (index) {
+            case 0: byte_B2DEA = value; break;
+            case 1: byte_B2DE9 = value; break;
+            case 2: byte_B2E26 = value; break;
+        }
+    }]];
+    
+    [espItems addObject:[_F1oatM3nuBool itemWithKey:@"EnemyCount" title:@"Enemy Count" getter:^BOOL{
+        return byte_B2E08;
+    } setter:^(BOOL value) {
+        byte_B2E08 = value;
+    }]];
+    
+    [espItems addObject:[_F1oatM3nuBool itemWithKey:@"BloodVisibility" title:@"Blood Visibility" getter:^BOOL{
+        return byte_B2CE8;
+    } setter:^(BOOL value) {
+        byte_B2CE8 = value;
+    }]];
+    
+    [espItems addObject:[_F1oatM3nuSeg itemWithKey:@"LineOrigin" title:@"Line from" options:@[@"Bottom", @"Head", @"Custom"] getter:^NSInteger{
+        return dword_B39D0;
+    } setter:^(NSInteger value) {
+        dword_B39D0 = (int)value;
+    }]];
+    
+    [espItems addObject:[_F1oatM3nuSeg itemWithKey:@"BloodType" title:@"Blood Type" options:@[@"Default", @"Green", @"None"] getter:^NSInteger{
+        return dword_B3B58;
+    } setter:^(NSInteger value) {
+        dword_B3B58 = (int)value;
+    }]];
+    
+    [espItems addObject:[_F1oatM3nuSeg itemWithKey:@"TargetPriority" title:@"Target Priority" options:@[@"Distance", @"Health", @"Angle"] getter:^NSInteger{
+        return dword_B3B5C;
+    } setter:^(NSInteger value) {
+        dword_B3B5C = (int)value;
+    }]];
+    
+    [tabs addObject:[_F1oatM3nuTab tabWithTitle:@"ESP" items:espItems]];
+    
+    // ========================================================================
+    // Aimbot Tab
+    // ========================================================================
+    NSMutableArray *aimbotItems = [NSMutableArray array];
+    
+    [aimbotItems addObject:[_F1oatM3nuBool itemWithKey:@"Aimbot" title:@"Aimbot" getter:^BOOL{
+        return byte_B3B71;
+    } setter:^(BOOL value) {
+        byte_B3B71 = value;
+    }]];
+    
+    [aimbotItems addObject:[_F1oatM3nuBool itemWithKey:@"AimSilent2" title:@"Aimkill" getter:^BOOL{
+        return byte_B2E2E;
+    } setter:^(BOOL value) {
+        byte_B2E2E = value;
+    }]];
+    
+    [aimbotItems addObject:[_F1oatM3nuBool itemWithKey:@"AutoFire" title:@"AutoFire" getter:^BOOL{
+        return byte_B2D5D;
+    } setter:^(BOOL value) {
+        byte_B2D5D = value;
+    }]];
+    
+    [aimbotItems addObject:[_F1oatM3nuBool itemWithKey:@"RateOfFire" title:@"Rate of Fire" getter:^BOOL{
+        return byte_B3AF5;
+    } setter:^(BOOL value) {
+        byte_B3AF5 = value;
+        byte_B3B0A = value;
+    }]];
+    
+    [aimbotItems addObject:[_F1oatM3nuFloat itemWithKey:@"AimFov" title:@"FOV Radius" min:0 max:45 getter:^float{
+        return *(float *)&dword_B2D60;
+    } setter:^(float value) {
+        dword_B2D60 = *(int *)&value;
+        byte_B2D79 = value > 0;
+    }]];
+    
+    [aimbotItems addObject:[_F1oatM3nuMulti itemWithKey:@"aimMulti1" titles:@[@"Aimsilent", @"AimAssist Rotation"] getters:^NSArray *{
+        return @[@(byte_B2E1F), @(byte_B3AF6)];
+    } setters:^(NSInteger index, BOOL value) {
+        switch (index) {
+            case 0: byte_B2E1F = value; break;
+            case 1: byte_B3AF6 = value; break;
+        }
+    }]];
+    
+    [aimbotItems addObject:[_F1oatM3nuMulti itemWithKey:@"aimMulti2" titles:@[@"Damage Reflect", @"Ignore Wall"] getters:^NSArray *{
+        return @[@(byte_B3AF7), @(byte_B3AF4)];
+    } setters:^(NSInteger index, BOOL value) {
+        switch (index) {
+            case 0: byte_B3AF7 = value; break;
+            case 1: byte_B3AF4 = value; break;
+        }
+    }]];
+    
+    [aimbotItems addObject:[_F1oatM3nuMulti itemWithKey:@"aimMulti3" titles:@[@"Swap Weapon", @"Second Phase", @"First Phase"] getters:^NSArray *{
+        return @[@(byte_B3AF2), @(byte_B3A81), @(byte_B3A82)];
+    } setters:^(NSInteger index, BOOL value) {
+        switch (index) {
+            case 0: byte_B3AF2 = value; break;
+            case 1: byte_B3A81 = value; break;
+            case 2: byte_B3A82 = value; break;
+        }
+    }]];
+    
+    [aimbotItems addObject:[_F1oatM3nuMulti itemWithKey:@"aimMulti4" titles:@[@"PhyxState", @"Fast", @"Mideum"] getters:^NSArray *{
+        return @[@(byte_B3A83), @(byte_B3B12), @(byte_B3B54)];
+    } setters:^(NSInteger index, BOOL value) {
+        switch (index) {
+            case 0: byte_B3A83 = value; break;
+            case 1: byte_B3B12 = value; break;
+            case 2: byte_B3B54 = value; break;
+        }
+    }]];
+    
+    [aimbotItems addObject:[_F1oatM3nuFloat itemWithKey:@"TakeDamageTimerMin" title:@"Aim Kill Timer Min" min:1 max:50 getter:^float{
+        return dword_B2CD4;
+    } setter:^(float value) {
+        dword_B2CD4 = (int)value;
+    }]];
+    
+    [aimbotItems addObject:[_F1oatM3nuFloat itemWithKey:@"TakeDamageTimerMax" title:@"Aim Kill Timer Max" min:2 max:40 getter:^float{
+        return dword_B2CD8;
+    } setter:^(float value) {
+        dword_B2CD8 = (int)value;
+    }]];
+    
+    [aimbotItems addObject:[_F1oatM3nuFloat itemWithKey:@"goTeleportStateRadius" title:@"Go Teleport Radius" min:0 max:10 getter:^float{
+        return *(float *)&dword_B2CE4;
+    } setter:^(float value) {
+        dword_B2CE4 = *(int *)&value;
+    }]];
+    
+    [aimbotItems addObject:[_F1oatM3nuSeg itemWithKey:@"TriggerWhen" title:@"Trigger When" options:@[@"Always", @"When Firing", @"When Scoping"] getter:^NSInteger{
+        return dword_B2D74;
+    } setter:^(NSInteger value) {
+        dword_B2D74 = (int)value;
+    }]];
+    
+    [aimbotItems addObject:[_F1oatM3nuSeg itemWithKey:@"TargetBone" title:@"Target Bone" options:@[@"Head", @"Chest", @"Pelvis"] getter:^NSInteger{
+        return dword_B39DC;
+    } setter:^(NSInteger value) {
+        dword_B39DC = (int)value;
+    }]];
+    
+    [tabs addObject:[_F1oatM3nuTab tabWithTitle:@"Aimbot" items:aimbotItems]];
+    
+    // ========================================================================
+    // MSL Tab
+    // ========================================================================
+    NSMutableArray *mslItems = [NSMutableArray array];
+    
+    [mslItems addObject:[_F1oatM3nuBool itemWithKey:@"SpeedHack" title:@"Speed Bypass" getter:^BOOL{
+        return byte_B3B74;
+    } setter:^(BOOL value) {
+        byte_B3B74 = value;
+    }]];
+    
+    [mslItems addObject:[_F1oatM3nuMulti itemWithKey:@"mslMulti1" titles:@[@"Up Player", @"Telekill", @"Underground Kill2"] getters:^NSArray *{
+        return @[@(byte_B2D99), @(byte_B2D7A), @(byte_B2D7F)];
+    } setters:^(NSInteger index, BOOL value) {
+        switch (index) {
+            case 0: byte_B2D99 = value; break;
+            case 1: byte_B2D7A = value; break;
+            case 2: byte_B2D7F = value; break;
+        }
+    }]];
+    
+    [mslItems addObject:[_F1oatM3nuMulti itemWithKey:@"mslMulti2" titles:@[@"Ninja Run", @"Reset Guest"] getters:^NSArray *{
+        return @[@(byte_B2D4A), @(byte_B3B73)];
+    } setters:^(NSInteger index, BOOL value) {
+        switch (index) {
+            case 0: byte_B2D4A = value; break;
+            case 1: byte_B3B73 = value; break;
+        }
+    }]];
+    
+    [mslItems addObject:[_F1oatM3nuSeg itemWithKey:@"NinjaRunSpeed" title:@"Ninja Run Speed" options:@[@"Slow", @"Fast"] getter:^NSInteger{
+        return byte_B2D4B ? 1 : 0;
+    } setter:^(NSInteger value) {
+        byte_B2D4B = value == 0;
+        byte_B2D4C = value == 1;
+    }]];
+    
+    [tabs addObject:[_F1oatM3nuTab tabWithTitle:@"MSL" items:mslItems]];
+    
+    // ========================================================================
+    // Buttons Tab
+    // ========================================================================
+    NSMutableArray *buttonItems = [NSMutableArray array];
+    
+    [buttonItems addObject:[_F1oatM3nuBool itemWithKey:@"Show All" title:@"Show All" getter:^BOOL{
+        return byte_B335D;
+    } setter:^(BOOL value) {
+        byte_B335D = value;
+        [self updateUIButtonVisibility];
+    }]];
+    
+    [buttonItems addObject:[_F1oatM3nuMulti itemWithKey:@"btnMulti1" titles:@[@"Ghost", @"Tele VIP", @"KILL"] getters:^NSArray *{
+        return @[@(byte_B2D98), @(byte_B2DC5), @(byte_B2DD4)];
+    } setters:^(NSInteger index, BOOL value) {
+        switch (index) {
+            case 0: [self toggleShowGhostUI:nil]; break;
+            case 1: [self toggleShowTeleVIPUI:nil]; break;
+            case 2: [self toggleShowUndergroundUI:nil]; break;
+        }
+        [self updateUIButtonVisibility];
+    }]];
+    
+    [buttonItems addObject:[_F1oatM3nuMulti itemWithKey:@"btnMulti2" titles:@[@"AI KILL", @"NINJA"] getters:^NSArray *{
+        return @[@(byte_B2D64), @(byte_B2D85)];
+    } setters:^(NSInteger index, BOOL value) {
+        switch (index) {
+            case 0: [self toggleShowAITelekillUI:nil]; break;
+            case 1: [self toggleShowNinjaRunUI:nil]; break;
+        }
+        [self updateUIButtonVisibility];
+    }]];
+    
+    [buttonItems addObject:[_F1oatM3nuMulti itemWithKey:@"btnMulti3" titles:@[@"FLY ALT", @"Invisible", @"FLYV2"] getters:^NSArray *{
+        return @[@(byte_B2D9B), @(byte_B2D9C), @(byte_B335B)];
+    } setters:^(NSInteger index, BOOL value) {
+        switch (index) {
+            case 0: [self toggleShowFlyAlturaUI:nil]; break;
+            case 1: [self toggleUIFlyNormal:nil]; break;
+            case 2: [self toggleShowFlyv2UI:nil]; break;
+        }
+        [self updateUIButtonVisibility];
+    }]];
+    
+    [buttonItems addObject:[_F1oatM3nuMulti itemWithKey:@"btnMulti4" titles:@[@"FlyGLD", @"GO TELEPORT"] getters:^NSArray *{
+        return @[@(byte_B2E24), @(byte_B3358)];
+    } setters:^(NSInteger index, BOOL value) {
+        switch (index) {
+            case 0: [self toggleShowSavePosUI:nil]; break;
+            case 1: [self toggleShowGoTeleportStateUI:nil]; break;
+        }
+        [self updateUIButtonVisibility];
+    }]];
+    
+    [buttonItems addObject:[_F1oatM3nuMulti itemWithKey:@"btnMulti5" titles:@[@"STOP MOVE", @"HORIZ SPEED", @"Aimkill"] getters:^NSArray *{
+        return @[@(byte_B3359), @(byte_B335A), @(byte_B2E25)];
+    } setters:^(NSInteger index, BOOL value) {
+        switch (index) {
+            case 0: [self toggleShowStopMoveUI:nil]; break;
+            case 1: [self toggleShowHorizontalSpeedUI:nil]; break;
+            case 2: [self toggleShowClearAntiuUI:nil]; break;
+        }
+        [self updateUIButtonVisibility];
+    }]];
+    
+    [buttonItems addObject:[_F1oatM3nuMulti itemWithKey:@"btnMulti6" titles:@[@"MAGNET KILL", @"MARK TP"] getters:^NSArray *{
+        return @[@(byte_B2E2D), @(byte_B335C)];
+    } setters:^(NSInteger index, BOOL value) {
+        switch (index) {
+            case 0: [self toggleShowMagnetKillUI:nil]; break;
+            case 1: [self toggleShowMarkTeleportUI:nil]; break;
+        }
+        [self updateUIButtonVisibility];
+    }]];
+    
+    [tabs addObject:[_F1oatM3nuTab tabWithTitle:@"Buttons" items:buttonItems]];
+    
+    return tabs;
+}
+
+#pragma mark - Menu Management
+
+- (void)showMenu {
+    self.isMenuOpen = YES;
+    self.floatingMenu.hidden = NO;
+    [self.floatingMenu reloadData];
+    [self saveUIState];
+}
+
+- (void)hideMenu {
+    self.isMenuOpen = NO;
+    self.floatingMenu.hidden = YES;
+    [self saveUIState];
+}
+
+- (void)toggleMenu {
+    if (self.isMenuOpen) {
+        [self hideMenu];
+    } else {
+        [self showMenu];
     }
 }
 
-+ (void)removeAllItems {
-    [menuItems removeAllObjects];
++ (void)toggleMenuFromFloatingButton {
+    // Called from floating button
 }
 
-+ (void)setBackgroundColor:(UIColor *)color {
-    if (menuWindow) {
-        menuWindow.backgroundColor = color;
+#pragma mark - State Management
+
+- (NSString *)uiStateJSONPath {
+    NSArray *paths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
+    NSString *documentsDirectory = paths.firstObject;
+    return [documentsDirectory stringByAppendingPathComponent:@"menu_ui_state.json"];
+}
+
+- (id)readUIStateJSON {
+    NSString *path = [self uiStateJSONPath];
+    if (!path) return [NSMutableDictionary dictionary];
+    
+    NSData *data = [NSData dataWithContentsOfFile:path];
+    if (!data || data.length == 0) return [NSMutableDictionary dictionary];
+    
+    NSError *error;
+    id json = [NSJSONSerialization JSONObjectWithData:data options:0 error:&error];
+    if (error || ![json isKindOfClass:[NSDictionary class]]) {
+        return [NSMutableDictionary dictionary];
+    }
+    return [json mutableCopy];
+}
+
+- (void)writeUIStateJSON:(id)data {
+    if (!data) return;
+    
+    NSString *path = [self uiStateJSONPath];
+    NSError *error;
+    NSData *jsonData = [NSJSONSerialization dataWithJSONObject:data options:NSJSONWritingPrettyPrinted error:&error];
+    if (jsonData && !error) {
+        [jsonData writeToFile:path atomically:YES];
     }
 }
 
-+ (void)setOpacity:(CGFloat)opacity {
-    if (menuWindow) {
-        menuWindow.alpha = opacity;
+- (id)serializeColor:(UIColor *)color {
+    if (!color) return nil;
+    
+    CGFloat r, g, b, a;
+    if ([color getRed:&r green:&g blue:&b alpha:&a]) {
+        return @{@"r": @(r), @"g": @(g), @"b": @(b), @"a": @(a)};
+    }
+    return nil;
+}
+
+- (id)deserializeColor:(id)colorData fallback:(UIColor *)fallback {
+    if (![colorData isKindOfClass:[NSDictionary class]]) return fallback;
+    
+    NSDictionary *dict = colorData;
+    NSNumber *r = dict[@"r"];
+    NSNumber *g = dict[@"g"];
+    NSNumber *b = dict[@"b"];
+    NSNumber *a = dict[@"a"];
+    
+    if (!r || !g || !b) return fallback;
+    
+    CGFloat alpha = a ? [a floatValue] : 1.0;
+    return [UIColor colorWithRed:[r floatValue] green:[g floatValue] blue:[b floatValue] alpha:alpha];
+}
+
+- (UIColor *)loadSavedThemeColor {
+    id state = [self readUIStateJSON];
+    id colorData = state[@"themeColor"];
+    return [self deserializeColor:colorData fallback:[UIColor colorWithRed:0.2 green:0.6 blue:0.9 alpha:1.0]];
+}
+
+- (void)saveUIState {
+    NSMutableDictionary *state = [[self readUIStateJSON] mutableCopy];
+    NSMutableDictionary *buttonStates = [NSMutableDictionary dictionary];
+    
+    [self saveButtonState:buttonStates tag:88801 value:byte_B2D98];
+    [self saveButtonState:buttonStates tag:88802 value:byte_B2DC5];
+    [self saveButtonState:buttonStates tag:88803 value:byte_B2DD4];
+    [self saveButtonState:buttonStates tag:88804 value:byte_B2D64];
+    [self saveButtonState:buttonStates tag:88805 value:byte_B2D85];
+    [self saveButtonState:buttonStates tag:88806 value:byte_B2D9B];
+    [self saveButtonState:buttonStates tag:88807 value:byte_B2D9C];
+    [self saveButtonState:buttonStates tag:88808 value:byte_B2E24];
+    [self saveButtonState:buttonStates tag:88813 value:byte_B3358];
+    [self saveButtonState:buttonStates tag:88814 value:byte_B3359];
+    [self saveButtonState:buttonStates tag:88815 value:byte_B335A];
+    [self saveButtonState:buttonStates tag:88816 value:byte_B335B];
+    [self saveButtonState:buttonStates tag:88809 value:byte_B2E25];
+    [self saveButtonState:buttonStates tag:88810 value:byte_B2E2D];
+    [self saveButtonState:buttonStates tag:88817 value:byte_B335C];
+    
+    state[@"buttons"] = buttonStates;
+    
+    if (self.currentThemeColor) {
+        state[@"themeColor"] = [self serializeColor:self.currentThemeColor];
+    }
+    
+    state[@"showAllButtons"] = @(byte_B335D);
+    state[@"AimFov"] = @(*(float *)&dword_B2D60);
+    state[@"TakeDamageTimerMin"] = @(dword_B2CD4);
+    state[@"TakeDamageTimerMax"] = @(dword_B2CD8);
+    state[@"goTeleportStateRadius"] = @(*(float *)&dword_B2CE4);
+    
+    [self writeUIStateJSON:state];
+    [self saveMenuState];
+}
+
+- (void)saveButtonState:(NSMutableDictionary *)dict tag:(NSInteger)tag value:(BOOL)value {
+    NSString *key = [NSString stringWithFormat:@"%ld", (long)tag];
+    dict[key] = @{@"visible": @(value)};
+}
+
+- (void)loadUIState {
+    NSMutableDictionary *state = [[self readUIStateJSON] mutableCopy];
+    
+    UIColor *defaultColor = [UIColor colorWithRed:0.2 green:0.6 blue:0.9 alpha:1.0];
+    id themeColorData = state[@"themeColor"];
+    UIColor *loadedColor = [self deserializeColor:themeColorData fallback:defaultColor];
+    self.currentThemeColor = loadedColor;
+    
+    NSDictionary *buttons = state[@"buttons"];
+    if (buttons) {
+        byte_B2D98 = [self loadButtonState:buttons tag:88801 defaultValue:byte_B2D98];
+        byte_B2DC5 = [self loadButtonState:buttons tag:88802 defaultValue:byte_B2DC5];
+        byte_B2DD4 = [self loadButtonState:buttons tag:88803 defaultValue:byte_B2DD4];
+        byte_B2D64 = [self loadButtonState:buttons tag:88804 defaultValue:byte_B2D64];
+        byte_B2D85 = [self loadButtonState:buttons tag:88805 defaultValue:byte_B2D85];
+        byte_B2D9B = [self loadButtonState:buttons tag:88806 defaultValue:byte_B2D9B];
+        byte_B2D9C = [self loadButtonState:buttons tag:88807 defaultValue:byte_B2D9C];
+        byte_B2E24 = [self loadButtonState:buttons tag:88808 defaultValue:byte_B2E24];
+        byte_B3358 = [self loadButtonState:buttons tag:88813 defaultValue:byte_B3358];
+        byte_B3359 = [self loadButtonState:buttons tag:88814 defaultValue:byte_B3359];
+        byte_B335A = [self loadButtonState:buttons tag:88815 defaultValue:byte_B335A];
+        byte_B335B = [self loadButtonState:buttons tag:88816 defaultValue:byte_B335B];
+        byte_B2E25 = [self loadButtonState:buttons tag:88809 defaultValue:byte_B2E25];
+        byte_B2E2D = [self loadButtonState:buttons tag:88810 defaultValue:byte_B2E2D];
+        byte_B335C = [self loadButtonState:buttons tag:88817 defaultValue:byte_B335C];
+    }
+    
+    NSNumber *showAll = state[@"showAllButtons"];
+    byte_B335D = showAll ? [showAll boolValue] : 1;
+    
+    NSNumber *aimFov = state[@"AimFov"];
+    if (aimFov) dword_B2D60 = [aimFov floatValue];
+    
+    NSNumber *timerMin = state[@"TakeDamageTimerMin"];
+    if (timerMin) dword_B2CD4 = [timerMin intValue];
+    
+    NSNumber *timerMax = state[@"TakeDamageTimerMax"];
+    if (timerMax) dword_B2CD8 = [timerMax intValue];
+    
+    NSNumber *teleportRadius = state[@"goTeleportStateRadius"];
+    if (teleportRadius) dword_B2CE4 = [teleportRadius floatValue];
+    
+    [self loadMenuState];
+}
+
+- (BOOL)loadButtonState:(NSDictionary *)buttons tag:(NSInteger)tag defaultValue:(BOOL)defaultValue {
+    NSString *key = [NSString stringWithFormat:@"%ld", (long)tag];
+    NSDictionary *buttonData = buttons[key];
+    if (!buttonData) return defaultValue;
+    
+    NSNumber *visible = buttonData[@"visible"];
+    if (!visible) return defaultValue;
+    
+    return [visible boolValue];
+}
+
+- (void)saveMenuState {
+    NSMutableDictionary *state = [[self readUIStateJSON] mutableCopy];
+    NSMutableDictionary *menuState = [NSMutableDictionary dictionary];
+    
+    menuState[@"isOpen"] = @(self.isMenuOpen);
+    
+    if (self.floatingMenu) {
+        menuState[@"selectedTab"] = @(self.floatingMenu.selectedTabIndex);
+        
+        NSMutableDictionary *position = [NSMutableDictionary dictionary];
+        position[@"x"] = @(self.floatingMenu.frame.origin.x);
+        position[@"y"] = @(self.floatingMenu.frame.origin.y);
+        menuState[@"position"] = position;
+    }
+    
+    state[@"floatingMenu"] = menuState;
+    [self writeUIStateJSON:state];
+}
+
+- (void)loadMenuState {
+    NSDictionary *state = [self readUIStateJSON];
+    NSDictionary *menuState = state[@"floatingMenu"];
+    
+    if (menuState) {
+        self.isMenuOpen = [menuState[@"isOpen"] boolValue];
+        
+        NSNumber *selectedTab = menuState[@"selectedTab"];
+        if (selectedTab && self.floatingMenu) {
+            self.floatingMenu.selectedTabIndex = [selectedTab integerValue];
+            [self.floatingMenu updateTabSelection];
+            [self.floatingMenu reloadData];
+        }
+    } else {
+        self.isMenuOpen = YES;
+    }
+    
+    if (self.floatingMenu) {
+        self.floatingMenu.hidden = !self.isMenuOpen;
     }
 }
 
-+ (void)setPosition:(CGPoint)position {
-    if (menuWindow) {
-        CGRect frame = menuWindow.frame;
-        frame.origin = position;
-        menuWindow.frame = frame;
+#pragma mark - Button Position Management
+
+- (CGPoint)loadButtonPosition:(NSInteger)tag defaultX:(CGFloat)defaultX defaultY:(CGFloat)defaultY {
+    NSDictionary *state = [self readUIStateJSON];
+    NSDictionary *buttons = state[@"buttons"];
+    
+    if (!buttons) return CGPointMake(defaultX, defaultY);
+    
+    NSString *key = [NSString stringWithFormat:@"%ld", (long)tag];
+    NSDictionary *buttonData = buttons[key];
+    if (!buttonData) return CGPointMake(defaultX, defaultY);
+    
+    NSNumber *x = buttonData[@"x"];
+    NSNumber *y = buttonData[@"y"];
+    if (!x || !y) return CGPointMake(defaultX, defaultY);
+    
+    CGFloat posX = [x floatValue];
+    CGFloat posY = [y floatValue];
+    
+    UIScreen *screen = [UIScreen mainScreen];
+    CGFloat maxX = screen.bounds.size.width - 90;
+    CGFloat maxY = screen.bounds.size.height - 90;
+    
+    posX = MAX(0, MIN(posX, maxX));
+    posY = MAX(0, MIN(posY, maxY));
+    
+    return CGPointMake(posX, posY);
+}
+
+- (void)saveButtonPosition:(UIButton *)button {
+    if (!button) return;
+    
+    NSMutableDictionary *state = [[self readUIStateJSON] mutableCopy];
+    NSMutableDictionary *buttons = [state[@"buttons"] mutableCopy] ?: [NSMutableDictionary dictionary];
+    
+    NSString *key = [NSString stringWithFormat:@"%ld", (long)button.tag];
+    NSMutableDictionary *buttonData = [buttons[key] mutableCopy] ?: [NSMutableDictionary dictionary];
+    
+    buttonData[@"x"] = @(button.frame.origin.x);
+    buttonData[@"y"] = @(button.frame.origin.y);
+    buttons[key] = buttonData;
+    
+    state[@"buttons"] = buttons;
+    [self writeUIStateJSON:state];
+}
+
+#pragma mark - Settings
+
+- (NSString *)settingsFilePath {
+    NSArray *paths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
+    NSString *documentsDirectory = paths.firstObject;
+    return [documentsDirectory stringByAppendingPathComponent:@"settings.fluck"];
+}
+
+- (void)loadResolutionAndLineOriginFromSettingsFile {
+    NSString *path = [self settingsFilePath];
+    if (!path) return;
+    
+    NSFileManager *fileManager = [NSFileManager defaultManager];
+    NSString *content = nil;
+    
+    if ([fileManager fileExistsAtPath:path]) {
+        content = [NSString stringWithContentsOfFile:path encoding:NSUTF8StringEncoding error:nil];
+    }
+    
+    if (!content || content.length == 0) {
+        NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+        content = [defaults stringForKey:@"FluckSettingsBackup"];
+    }
+    
+    if (!content || content.length == 0) return;
+    
+    NSMutableDictionary *settings = [NSMutableDictionary dictionary];
+    NSArray *lines = [content componentsSeparatedByString:@"\n"];
+    
+    for (NSString *line in lines) {
+        NSArray *parts = [line componentsSeparatedByString:@"="];
+        if (parts.count == 2) {
+            NSString *key = [parts[0] stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
+            NSString *value = [parts[1] stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
+            settings[key] = value;
+        }
+    }
+    
+    NSNumber *lineOrigin = settings[@"LineOrigin"];
+    if (lineOrigin) {
+        int value = [lineOrigin intValue];
+        if (value >= 0 && value <= 2) dword_B39D0 = value;
+    }
+    
+    NSNumber *resolutionWidth = settings[@"ResolutionWidth"];
+    if (resolutionWidth) {
+        int value = [resolutionWidth intValue];
+        if (value >= 720 && value <= 2000) dword_B39D4 = value;
+    }
+    
+    NSNumber *resolutionHeight = settings[@"ResolutionHeight"];
+    if (resolutionHeight) {
+        int value = [resolutionHeight intValue];
+        if (value >= 720 && value <= 2000) dword_B39D8 = value;
+    }
+    
+    NSNumber *fullscreen = settings[@"ResolutionFullscreen"];
+    if (fullscreen) byte_B2CC4 = [fullscreen intValue] == 1;
+    
+    NSNumber *refreshRate = settings[@"PreferredRefreshRate"];
+    if (refreshRate) {
+        int value = [refreshRate intValue];
+        if (value >= 60 && value <= 120) dword_B2CC8 = value;
+    }
+    
+    NSNumber *resetOnOpen = settings[@"ResetResolutionOnOpen"];
+    if (resetOnOpen) byte_B2CCC = [resetOnOpen intValue] == 1;
+}
+
+#pragma mark - Theme
+
+- (UIColor *)accentColor {
+    return self.currentThemeColor ?: [UIColor colorWithRed:0.2 green:0.6 blue:0.9 alpha:1.0];
+}
+
+- (UIColor *)textColor {
+    return [UIColor whiteColor];
+}
+
+- (UIColor *)glowColor {
+    return [[self accentColor] colorWithAlphaComponent:0.6];
+}
+
+- (UIColor *)pillColor {
+    return [UIColor colorWithWhite:0.18 alpha:0.38];
+}
+
+- (UIColor *)checkboxOffColor {
+    return [UIColor blackColor];
+}
+
+#pragma mark - Protection
+
+- (void)protectAllFeatureButtons {
+    // Protection implementation
+}
+
+- (void)unprotectAllFeatureButtons {
+    // Unprotect implementation
+}
+
+- (void)screenCaptureStatusChanged:(NSNotification *)notification {
+    // Handle screen capture
+}
+
+- (void)toggleStreamMode:(UISwitch *)sender {
+    // Stream mode toggle
+}
+
+- (void)setAllButtonsVisible:(BOOL)visible {
+    byte_B335D = visible;
+    byte_B2DD4 = visible;
+    byte_B2D64 = visible;
+    byte_B2D9B = visible;
+    byte_B3358 = visible;
+    byte_B3359 = visible;
+    byte_B335A = visible;
+    byte_B2E25 = visible;
+    [self createAllFeatureButtons];
+}
+
+#pragma mark - Gestures
+
+- (void)addMasterToggleGesture {
+    UIWindow *keyWindow = [UIApplication sharedApplication].keyWindow;
+    if (!keyWindow) return;
+    
+    UIViewController *rootVC = keyWindow.rootViewController;
+    if (!rootVC) return;
+    
+    UITapGestureRecognizer *gesture = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(toggleMasterVisibility:)];
+    gesture.numberOfTapsRequired = 3;
+    gesture.numberOfTouchesRequired = 3;
+    [rootVC.view addGestureRecognizer:gesture];
+}
+
+- (void)toggleMasterVisibility:(UITapGestureRecognizer *)gesture {
+    BOOL newState = !byte_B335D;
+    byte_B335D ^= 1;
+    [self setAllButtonsVisible:newState];
+    
+    UIImpactFeedbackGenerator *feedback = [[UIImpactFeedbackGenerator alloc] initWithStyle:UIImpactFeedbackStyleHeavy];
+    [feedback impactOccurred];
+}
+
+- (void)handleFeatureDrag:(UIPanGestureRecognizer *)gesture {
+    UIButton *button = (UIButton *)gesture.view;
+    UIView *superview = button.superview;
+    
+    CGPoint translation = [gesture translationInView:superview];
+    CGPoint center = button.center;
+    button.center = CGPointMake(center.x + translation.x, center.y + translation.y);
+    [gesture setTranslation:CGPointZero inView:superview];
+    
+    if (gesture.state == UIGestureRecognizerStateEnded) {
+        [self saveButtonPosition:button];
+        [self saveUIState];
     }
 }
 
-+ (void)setSize:(CGSize)size {
-    if (menuWindow) {
-        CGRect frame = menuWindow.frame;
-        frame.size = size;
-        menuWindow.frame = frame;
-    }
+#pragma mark - Feature Actions
+
+- (void)ghostSwitchChanged:(UISwitch *)sender {
+    byte_B2D7C = sender.isOn;
 }
 
-+ (BOOL)isVisible {
-    return isMenuVisible;
+- (void)teleVIPSwitchChanged:(UISwitch *)sender {
+    byte_B2D82 = sender.isOn;
+    if (!sender.isOn) byte_B3A7E = 0;
+}
+
+- (void)undergroundSwitchChanged:(UISwitch *)sender {
+    byte_B2D86 = sender.isOn;
+}
+
+- (void)aiTelekillSwitchChanged:(UISwitch *)sender {
+    byte_B2D8D = sender.isOn;
+}
+
+- (void)ninjaRunSwitchChanged:(UISwitch *)sender {
+    byte_B2D4A = sender.isOn;
+}
+
+- (void)flyAlturaSwitchChanged:(UISwitch *)sender {
+    byte_B3A7E = sender.isOn;
+}
+
+- (void)flyNormalSwitchChanged:(UISwitch *)sender {
+    byte_B3B55 = sender.isOn;
+}
+
+- (void)flyv2SwitchChanged:(UISwitch *)sender {
+    byte_B3B14 = sender.isOn;
+}
+
+- (void)savePosSwitchChanged:(UISwitch *)sender {
+    byte_B3B0C = sender.isOn;
+}
+
+- (void)goTeleportStateSwitchChanged:(UISwitch *)sender {
+    byte_B3B0E = sender.isOn;
+}
+
+- (void)stopMoveSwitchChanged:(UISwitch *)sender {
+    byte_B3AF8 = sender.isOn;
+}
+
+- (void)horizontalSpeedSwitchChanged:(UISwitch *)sender {
+    byte_B3A7F = sender.isOn;
+}
+
+- (void)clearAntiuSwitchChanged:(UISwitch *)sender {
+    byte_B3B0A = sender.isOn;
+    byte_B3AF5 = sender.isOn;
+}
+
+- (void)magnetKillSwitchChanged:(UISwitch *)sender {
+    byte_B2E2C = sender.isOn;
+}
+
+- (void)markTeleportSwitchChanged:(UISwitch *)sender {
+    byte_B3B0F = sender.isOn;
+}
+
+#pragma mark - Toggle Visibility
+
+- (void)toggleShowGhostUI:(UISwitch *)sender {
+    byte_B2D98 = sender ? sender.isOn : !byte_B2D98;
+    [self updateUIButtonVisibility];
+}
+
+- (void)toggleShowTeleVIPUI:(UISwitch *)sender {
+    byte_B2DC5 = sender ? sender.isOn : !byte_B2DC5;
+    [self updateUIButtonVisibility];
+}
+
+- (void)toggleShowUndergroundUI:(UISwitch *)sender {
+    byte_B2DD4 = sender ? sender.isOn : !byte_B2DD4;
+    [self updateUIButtonVisibility];
+}
+
+- (void)toggleShowAITelekillUI:(UISwitch *)sender {
+    byte_B2D64 = sender ? sender.isOn : !byte_B2D64;
+    [self updateUIButtonVisibility];
+}
+
+- (void)toggleShowNinjaRunUI:(UISwitch *)sender {
+    byte_B2D85 = sender ? sender.isOn : !byte_B2D85;
+    [self updateUIButtonVisibility];
+}
+
+- (void)toggleShowFlyAlturaUI:(UISwitch *)sender {
+    byte_B2D9B = sender ? sender.isOn : !byte_B2D9B;
+    [self updateUIButtonVisibility];
+}
+
+- (void)toggleUIFlyNormal:(UISwitch *)sender {
+    byte_B2D9C = sender ? sender.isOn : !byte_B2D9C;
+    [self updateUIButtonVisibility];
+}
+
+- (void)toggleShowFlyv2UI:(UISwitch *)sender {
+    byte_B335B = sender ? sender.isOn : !byte_B335B;
+    [self updateUIButtonVisibility];
+}
+
+- (void)toggleShowSavePosUI:(UISwitch *)sender {
+    byte_B2E24 = sender ? sender.isOn : !byte_B2E24;
+    [self updateUIButtonVisibility];
+}
+
+- (void)toggleShowGoTeleportStateUI:(UISwitch *)sender {
+    byte_B3358 = sender ? sender.isOn : !byte_B3358;
+    [self updateUIButtonVisibility];
+}
+
+- (void)toggleShowStopMoveUI:(UISwitch *)sender {
+    byte_B3359 = sender ? sender.isOn : !byte_B3359;
+    [self updateUIButtonVisibility];
+}
+
+- (void)toggleShowHorizontalSpeedUI:(UISwitch *)sender {
+    byte_B335A = sender ? sender.isOn : !byte_B335A;
+    [self updateUIButtonVisibility];
+}
+
+- (void)toggleShowClearAntiuUI:(UISwitch *)sender {
+    byte_B2E25 = sender ? sender.isOn : !byte_B2E25;
+    [self updateUIButtonVisibility];
+}
+
+- (void)toggleShowMagnetKillUI:(UISwitch *)sender {
+    byte_B2E2D = sender ? sender.isOn : !byte_B2E2D;
+    [self updateUIButtonVisibility];
+}
+
+- (void)toggleShowMarkTeleportUI:(UISwitch *)sender {
+    byte_B335C = sender ? sender.isOn : !byte_B335C;
+    [self updateUIButtonVisibility];
 }
 
 @end
-
-// ============ DUMMY MATH FUNCTIONS ============
-static float dummy_sin(float x) { return sinf(x); }
-static float dummy_cos(float x) { return cosf(x); }
-static float dummy_tan(float x) { return tanf(x); }
-static float dummy_sqrt(float x) { return sqrtf(x); }
-static float dummy_atan2(float y, float x) { return atan2f(y, x); }
-static float dummy_abs(float x) { return fabsf(x); }
-
-// ============ DUMMY MEMORY FUNCTIONS ============
-static void* dummy_malloc(size_t size) { return malloc(size); }
-static void dummy_free(void *ptr) { free(ptr); }
-static void* dummy_memset(void *ptr, int value, size_t size) { return memset(ptr, value, size); }
-static void* dummy_memcpy(void *dest, const void *src, size_t size) { return memcpy(dest, src, size); }
-
-// ============ DUMMY ANIMATION ============
-static void dummy_animation() {
-    [UIView animateWithDuration:0.3 animations:^{
-        // Dummy animation
-    } completion:^(BOOL finished) {
-        // Dummy completion
-    }];
-}
-
-// ============ DUMMY SOUND ============
-static void dummy_sound() {
-    NSURL *url = [NSURL URLWithString:@"dummy"];
-    AVAudioPlayer *player = [[AVAudioPlayer alloc] initWithContentsOfURL:url error:nil];
-    [player play];
-}
-
-// ============ DUMMY LOCATION ============
-static void dummy_location() {
-    CLLocationManager *manager = [[CLLocationManager alloc] init];
-    [manager startUpdatingLocation];
-    CLLocation *loc = [[CLLocation alloc] initWithLatitude:10.0 longitude:10.0];
-    NSLog(@"Location: %f, %f", loc.coordinate.latitude, loc.coordinate.longitude);
-}
-
-// ============ DUMMY MAP ============
-static void dummy_map() {
-    MKMapView *map = [[MKMapView alloc] initWithFrame:CGRectZero];
-    map.showsUserLocation = YES;
-    map.mapType = MKMapTypeStandard;
-}
-
-// ============ DUMMY WEB ============
-static void dummy_web() {
-    WKWebView *web = [[WKWebView alloc] initWithFrame:CGRectZero];
-    [web loadRequest:[NSURLRequest requestWithURL:[NSURL URLWithString:@"https://example.com"]]];
-}
-
-// ============ DUMMY SCENEKIT ============
-static void dummy_scenekit() {
-    SCNScene *scene = [SCNScene scene];
-    SCNNode *node = [SCNNode node];
-    SCNBox *box = [SCNBox boxWithWidth:1 height:1 length:1 chamferRadius:0.1];
-    node.geometry = box;
-    [scene.rootNode addChildNode:node];
-}
-
-// ============ DUMMY SPRITEKIT ============
-static void dummy_spritekit() {
-    SKScene *scene = [[SKScene alloc] initWithSize:CGSizeMake(100, 100)];
-    SKSpriteNode *sprite = [SKSpriteNode spriteNodeWithColor:[UIColor redColor] size:CGSizeMake(50, 50)];
-    [scene addChild:sprite];
-}
-
-// ============ DUMMY METAL ============
-static void dummy_metal() {
-    id<MTLDevice> device = MTLCreateSystemDefaultDevice();
-    if (device) {
-        MTLTextureDescriptor *desc = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatRGBA8Unorm width:100 height:100 mipmapped:NO];
-        id<MTLTexture> texture = [device newTextureWithDescriptor:desc];
-        NSLog(@"Metal texture created: %@", texture);
-    }
-}
-
-// ============ DUMMY OPENGL ============
-static void dummy_opengl() {
-    glClearColor(0, 0, 0, 1);
-    glClear(GL_COLOR_BUFFER_BIT);
-}
-
-// ============ DUMMY ENCRYPTION ============
-static void dummy_encryption() {
-    unsigned char data[100] = {0};
-    unsigned char key[32] = {0};
-    unsigned char iv[16] = {0};
-    unsigned char encrypted[100] = {0};
-    unsigned char decrypted[100] = {0};
-    size_t outLen = 0;
-    
-    CCCryptorRef cryptor;
-    CCCryptorCreate(kCCEncrypt, kCCAlgorithmAES128, kCCOptionPKCS7Padding,
-                    key, sizeof(key), iv, &cryptor);
-    CCCryptorUpdate(cryptor, data, sizeof(data), encrypted, sizeof(encrypted), &outLen);
-    CCCryptorFinal(cryptor, encrypted, sizeof(encrypted), &outLen);
-    CCCryptorRelease(cryptor);
-    
-    CCCryptorCreate(kCCDecrypt, kCCAlgorithmAES128, kCCOptionPKCS7Padding,
-                    key, sizeof(key), iv, &cryptor);
-    CCCryptorUpdate(cryptor, encrypted, outLen, decrypted, sizeof(decrypted), &outLen);
-    CCCryptorFinal(cryptor, decrypted, sizeof(decrypted), &outLen);
-    CCCryptorRelease(cryptor);
-}
-
-// ============ DUMMY THREAD ============
-static void* dummy_thread(void *arg) {
-    while (1) {
-        sleep(1);
-        NSLog(@"Dummy thread running");
-    }
-    return NULL;
-}
-
-// ============ DUMMY NETWORK REQUEST ============
-static void dummy_network_request() {
-    NSURL *url = [NSURL URLWithString:@"https://api.example.com/data"];
-    NSURLSession *session = [NSURLSession sharedSession];
-    NSURLSessionDataTask *task = [session dataTaskWithURL:url completionHandler:^(NSData *data, NSURLResponse *response, NSError *error) {
-        if (data) {
-            NSDictionary *json = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
-            NSLog(@"Response: %@", json);
-        }
-    }];
-    [task resume];
-}
-
-// ============ DUMMY DATABASE ============
-static void dummy_database() {
-    NSString *path = [NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES) firstObject];
-    NSString *dbPath = [path stringByAppendingPathComponent:@"dummy.db"];
-    sqlite3 *db = NULL;
-    sqlite3_open([dbPath UTF8String], &db);
-    sqlite3_exec(db, "CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY, name TEXT)", NULL, NULL, NULL);
-    sqlite3_close(db);
-}
-
-// ============ DUMMY IMAGE PROCESSING ============
-static void dummy_image_processing() {
-    CGSize size = CGSizeMake(100, 100);
-    UIGraphicsBeginImageContext(size);
-    CGContextRef context = UIGraphicsGetCurrentContext();
-    CGContextSetFillColorWithColor(context, [UIColor redColor].CGColor);
-    CGContextFillRect(context, CGRectMake(0, 0, 100, 100));
-    UIImage *image = UIGraphicsGetImageFromCurrentImageContext();
-    UIGraphicsEndImageContext();
-    UIImageJPEGRepresentation(image, 0.8);
-}
-
-// ============ DUMMY COLOR FUNCTIONS ============
-static UIColor* dummy_gradient_color() {
-    NSArray *colors = @[
-        [UIColor redColor],
-        [UIColor blueColor],
-        [UIColor greenColor],
-        [UIColor yellowColor],
-        [UIColor purpleColor],
-        [UIColor orangeColor],
-        [UIColor magentaColor],
-        [UIColor cyanColor]
-    ];
-    return colors[arc4random() % colors.count];
-}
-
-// ============ DUMMY SHADOW EFFECT ============
-static void dummy_shadow() {
-    CALayer *layer = [CALayer layer];
-    layer.shadowColor = [UIColor blackColor].CGColor;
-    layer.shadowOpacity = 0.5;
-    layer.shadowRadius = 10;
-    layer.shadowOffset = CGSizeMake(5, 5);
-}
-
-// ============ DUMMY GESTURE ============
-static void dummy_gesture() {
-    UITapGestureRecognizer *tap = [[UITapGestureRecognizer alloc] initWithTarget:nil action:nil];
-    tap.numberOfTapsRequired = 2;
-    UIPanGestureRecognizer *pan = [[UIPanGestureRecognizer alloc] initWithTarget:nil action:nil];
-    UIPinchGestureRecognizer *pinch = [[UIPinchGestureRecognizer alloc] initWithTarget:nil action:nil];
-    UISwipeGestureRecognizer *swipe = [[UISwipeGestureRecognizer alloc] initWithTarget:nil action:nil];
-    swipe.direction = UISwipeGestureRecognizerDirectionRight;
-}
-
-// ============ DUMMY NOTIFICATION ============
-static void dummy_notification() {
-    NSNotificationCenter *center = [NSNotificationCenter defaultCenter];
-    [center addObserverForName:@"DummyNotification" object:nil queue:[NSOperationQueue mainQueue] usingBlock:^(NSNotification *note) {
-        NSLog(@"Notification received");
-    }];
-    [center postNotificationName:@"DummyNotification" object:nil];
-}
-
-// ============ DUMMY TIMER ============
-static void dummy_timer() {
-    NSTimer *timer = [NSTimer scheduledTimerWithTimeInterval:1.0 repeats:YES block:^(NSTimer *timer) {
-        NSLog(@"Timer fired");
-    }];
-    [timer fire];
-}
-
-// ============ DUMMY USER DEFAULTS ============
-static void dummy_user_defaults() {
-    NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
-    [defaults setObject:@"dummy" forKey:@"dummyKey"];
-    [defaults setInteger:123 forKey:@"dummyInt"];
-    [defaults setBool:YES forKey:@"dummyBool"];
-    [defaults synchronize];
-    NSString *value = [defaults stringForKey:@"dummyKey"];
-    NSLog(@"UserDefaults: %@", value);
-}
-
-// ============ DUMMY FILE MANAGER ============
-static void dummy_file_manager() {
-    NSFileManager *fm = [NSFileManager defaultManager];
-    NSString *path = [NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES) firstObject];
-    NSString *filePath = [path stringByAppendingPathComponent:@"dummy.txt"];
-    NSData *data = [@"Dummy data" dataUsingEncoding:NSUTF8StringEncoding];
-    [fm createFileAtPath:filePath contents:data attributes:nil];
-    [fm removeItemAtPath:filePath error:nil];
-}
-
-// ============ DUMMY PROCESS INFO ============
-static void dummy_process_info() {
-    int mib[4] = {CTL_KERN, KERN_PROC, KERN_PROC_ALL, 0};
-    size_t size = 0;
-    sysctl(mib, 4, NULL, &size, NULL, 0);
-    struct kinfo_proc *processes = (struct kinfo_proc*)malloc(size);
-    sysctl(mib, 4, processes, &size, NULL, 0);
-    free(processes);
-}
-
-// ============ DUMMY MACHINE INFO ============
-static void dummy_machine_info() {
-    size_t size;
-    sysctlbyname("hw.machine", NULL, &size, NULL, 0);
-    char *machine = (char*)malloc(size);
-    sysctlbyname("hw.machine", machine, &size, NULL, 0);
-    free(machine);
-}
-
-// ============ MAIN EXPORT FUNCTIONS ============
-extern "C" {
-    void start_ffhack() {
-        NSLog(@"╔══════════════════════════════════════╗");
-        NSLog(@"║  FFHack Pro v3.0 Started           ║");
-        NSLog(@"║  Built: %s %s", __DATE__, __TIME__);
-        NSLog(@"╚══════════════════════════════════════╝");
-        
-        // Call dummy functions to embed them
-        dummy_crypto_operations();
-        dummy_compression();
-        dummy_network();
-        dummy_file_io();
-        dummy_json_parse();
-        dummy_encryption();
-        dummy_network_request();
-        dummy_database();
-        dummy_image_processing();
-        dummy_sound();
-        dummy_location();
-        dummy_map();
-        dummy_web();
-        dummy_scenekit();
-        dummy_spritekit();
-        dummy_metal();
-        dummy_opengl();
-        dummy_animation();
-        dummy_shadow();
-        dummy_gesture();
-        dummy_notification();
-        dummy_timer();
-        dummy_user_defaults();
-        dummy_file_manager();
-        dummy_process_info();
-        dummy_machine_info();
-        
-        // Show menu
-        [FFHackMenu show];
-        
-        // Start background thread
-        pthread_t thread;
-        pthread_create(&thread, NULL, dummy_thread, NULL);
-        pthread_detach(thread);
-    }
-    
-    void stop_ffhack() {
-        NSLog(@"FFHack Pro Stopped");
-        [FFHackMenu hide];
-    }
-    
-    void toggle_menu() {
-        [FFHackMenu toggle];
-    }
-    
-    bool is_menu_visible() {
-        return [FFHackMenu isVisible];
-    }
-    
-    void set_feature_state(const char *feature, bool enabled) {
-        NSLog(@"Feature %s set to %d", feature, enabled);
-    }
-    
-    bool get_feature_state(const char *feature) {
-        return true;
-    }
-}
