@@ -13,7 +13,7 @@
 #define LOG(msg, ...) NSLog(@"🔰 " msg, ##__VA_ARGS__)
 
 // ============================================================
-// VECTOR3 CLASS - KHAI BÁO TRƯỚC KHI DÙNG
+// VECTOR3 CLASS
 // ============================================================
 
 typedef struct {
@@ -457,12 +457,12 @@ static kern_return_t mach_vm_read_overwrite_fix(vm_map_t task, mach_vm_address_t
 @end
 
 // ============================================================
-// YOUTUBE MUSIC PLAYER
+// SOUNDCLOUD MUSIC PLAYER (THAY THẾ YOUTUBE)
 // ============================================================
 
-@interface YouTubeMusicPlayer : NSObject <WKNavigationDelegate>
+@interface SoundCloudPlayer : NSObject <WKNavigationDelegate>
 + (instancetype)shared;
-- (void)playSong:(NSString *)songName;
+- (void)play;
 - (void)stop;
 - (void)pause;
 - (void)resume;
@@ -470,17 +470,17 @@ static kern_return_t mach_vm_read_overwrite_fix(vm_map_t task, mach_vm_address_t
 @property (nonatomic, strong) WKWebView *webView;
 @property (nonatomic, strong) UIWindow *musicWindow;
 @property (nonatomic, assign) BOOL playing;
-@property (nonatomic, strong) NSMutableArray *playlist;
+@property (nonatomic, strong) NSArray *playlist;
 @property (nonatomic, assign) NSInteger currentIndex;
 @end
 
-@implementation YouTubeMusicPlayer
+@implementation SoundCloudPlayer
 
 + (instancetype)shared {
-    static YouTubeMusicPlayer *instance = nil;
+    static SoundCloudPlayer *instance = nil;
     static dispatch_once_t onceToken;
     dispatch_once(&onceToken, ^{
-        instance = [[YouTubeMusicPlayer alloc] init];
+        instance = [[SoundCloudPlayer alloc] init];
     });
     return instance;
 }
@@ -490,35 +490,50 @@ static kern_return_t mach_vm_read_overwrite_fix(vm_map_t task, mach_vm_address_t
     if (self) {
         self.playing = NO;
         self.currentIndex = 0;
-        self.playlist = [NSMutableArray arrayWithArray:@[
-            @"https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-            @"https://www.youtube.com/watch?v=3JZ_D3ELwOQ"
-        ]];
+        // Playlist nhạc SoundCloud (không bị phát hiện người máy)
+        self.playlist = @[
+            @"https://soundcloud.com/alanwalkermusic/alan-walker-fade",
+            @"https://soundcloud.com/marshmellomusic/alan-walker-faded-marshmello",
+            @"https://soundcloud.com/kygoofficial/kygo-firestone",
+            @"https://soundcloud.com/thechainsmokers/closer-ft-halsey",
+            @"https://soundcloud.com/majorlazer/lean-on-feat-mo-dj-snake"
+        ];
     }
     return self;
 }
 
-- (void)playSong:(NSString *)songName {
+- (void)play {
     dispatch_async(dispatch_get_main_queue(), ^{
         if (!self.musicWindow) {
             [self setupMusicWindow];
         }
-        NSString *urlString = nil;
+        
         if (self.playlist.count > 0) {
-            urlString = self.playlist[self.currentIndex % self.playlist.count];
+            NSString *urlString = self.playlist[self.currentIndex % self.playlist.count];
             self.currentIndex++;
-        }
-        if (urlString) {
+            
+            // SoundCloud embed
             NSString *html = [NSString stringWithFormat:
-                @"<!DOCTYPE html><html><head>"
+                @"<!DOCTYPE html>"
+                @"<html>"
+                @"<head>"
                 @"<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no\">"
-                @"<style>body{margin:0;background:#000;display:flex;justify-content:center;align-items:center;height:100vh;overflow:hidden;}iframe{width:100%%;height:100%%;border:none;}</style>"
-                @"</head><body>"
-                @"<iframe src=\"%@?autoplay=1&playsinline=1&loop=1&controls=1\" "
-                @"allow=\"autoplay; encrypted-media; fullscreen\" allowfullscreen>"
-                @"</iframe></body></html>", urlString];
-            [self.webView loadHTMLString:html baseURL:[NSURL URLWithString:@"https://www.youtube.com"]];
+                @"<style>"
+                @"body{margin:0;background:#000;display:flex;justify-content:center;align-items:center;height:100vh;overflow:hidden;}"
+                @"iframe{width:100%%;height:100%%;border:none;}"
+                @"</style>"
+                @"</head>"
+                @"<body>"
+                @"<iframe src=\"%@?autoplay=true&visual=true\" "
+                @"allow=\"autoplay; encrypted-media\" "
+                @"allowfullscreen>"
+                @"</iframe>"
+                @"</body>"
+                @"</html>", urlString];
+            
+            [self.webView loadHTMLString:html baseURL:[NSURL URLWithString:@"https://soundcloud.com"]];
             self.playing = YES;
+            LOG(@"🎵 SoundCloud playing: %@", urlString);
         }
     });
 }
@@ -550,7 +565,7 @@ static kern_return_t mach_vm_read_overwrite_fix(vm_map_t task, mach_vm_address_t
     } else {
         screenBounds = [UIScreen mainScreen].bounds;
     }
-    CGFloat width = 320, height = 240;
+    CGFloat width = 320, height = 200;
     CGFloat x = screenBounds.size.width - width - 10;
     CGFloat y = screenBounds.size.height - height - 100;
     
@@ -570,7 +585,7 @@ static kern_return_t mach_vm_read_overwrite_fix(vm_map_t task, mach_vm_address_t
     self.musicWindow.hidden = NO;
     self.musicWindow.layer.cornerRadius = 12;
     self.musicWindow.clipsToBounds = YES;
-    self.musicWindow.layer.borderColor = [UIColor colorWithRed:0.0 green:0.8 blue:1.0 alpha:0.5].CGColor;
+    self.musicWindow.layer.borderColor = [UIColor colorWithRed:1.0 green:0.6 blue:0.0 alpha:0.5].CGColor;
     self.musicWindow.layer.borderWidth = 2;
     self.musicWindow.userInteractionEnabled = YES;
     
@@ -578,9 +593,7 @@ static kern_return_t mach_vm_read_overwrite_fix(vm_map_t task, mach_vm_address_t
     config.allowsInlineMediaPlayback = YES;
     config.mediaTypesRequiringUserActionForPlayback = WKAudiovisualMediaTypeNone;
     config.allowsAirPlayForMediaPlayback = YES;
-    config.allowsPictureInPictureMediaPlayback = YES;
     config.preferences = [[WKPreferences alloc] init];
-    // javaScriptEnabled đã deprecated, bỏ qua
     
     WKWebView *webView = [[WKWebView alloc] initWithFrame:CGRectMake(0, 0, width, height) configuration:config];
     webView.backgroundColor = [UIColor blackColor];
@@ -630,8 +643,8 @@ static kern_return_t mach_vm_read_overwrite_fix(vm_map_t task, mach_vm_address_t
     [controlsView addSubview:closeBtn];
     
     UILabel *titleLabel = [[UILabel alloc] initWithFrame:CGRectMake(130, 5, width - 170, 30)];
-    titleLabel.text = @"🎵 YouTube Music";
-    titleLabel.textColor = [UIColor whiteColor];
+    titleLabel.text = @"🎵 SoundCloud";
+    titleLabel.textColor = [UIColor colorWithRed:1.0 green:0.6 blue:0.0 alpha:1.0];
     titleLabel.font = [UIFont systemFontOfSize:12];
     titleLabel.textAlignment = NSTextAlignmentCenter;
     titleLabel.tag = 999;
@@ -658,7 +671,12 @@ static kern_return_t mach_vm_read_overwrite_fix(vm_map_t task, mach_vm_address_t
     if (self.playlist.count > 0) {
         NSString *url = self.playlist[self.currentIndex % self.playlist.count];
         self.currentIndex++;
-        [self playSong:url];
+        dispatch_async(dispatch_get_main_queue(), ^{
+            NSString *html = [NSString stringWithFormat:
+                @"<!DOCTYPE html><html><head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no\"><style>body{margin:0;background:#000;display:flex;justify-content:center;align-items:center;height:100vh;overflow:hidden;}iframe{width:100%%;height:100%%;border:none;}</style></head><body><iframe src=\"%@?autoplay=true&visual=true\" allow=\"autoplay; encrypted-media\" allowfullscreen></iframe></body></html>", url];
+            [self.webView loadHTMLString:html baseURL:[NSURL URLWithString:@"https://soundcloud.com"]];
+            self.playing = YES;
+        });
     }
 }
 
@@ -702,12 +720,12 @@ static kern_return_t mach_vm_read_overwrite_fix(vm_map_t task, mach_vm_address_t
 }
 
 - (void)webView:(WKWebView *)webView didFinishNavigation:(WKNavigation *)navigation {
-    LOG(@"✅ YouTube loaded");
+    LOG(@"✅ SoundCloud loaded");
     [webView evaluateJavaScript:@"document.querySelector('video')?.play();" completionHandler:nil];
 }
 
 - (void)webView:(WKWebView *)webView didFailNavigation:(WKNavigation *)navigation withError:(NSError *)error {
-    LOG(@"❌ YouTube error: %@", error.localizedDescription);
+    LOG(@"❌ SoundCloud error: %@", error.localizedDescription);
 }
 
 @end
@@ -721,7 +739,7 @@ static kern_return_t mach_vm_read_overwrite_fix(vm_map_t task, mach_vm_address_t
 @property (nonatomic, assign) BOOL isOn;
 @property (nonatomic, strong) UILabel *iconLabel;
 @property (nonatomic, strong) UILabel *statusLabel;
-@property (nonatomic, strong) UILabel *floatingTitleLabel; // Đổi tên để tránh conflict
+@property (nonatomic, strong) UILabel *floatingTitleLabel;
 @end
 
 @implementation FluckFloatingButton
@@ -736,7 +754,6 @@ static kern_return_t mach_vm_read_overwrite_fix(vm_map_t task, mach_vm_address_t
         self.layer.borderColor = [UIColor colorWithWhite:0.4 alpha:0.5].CGColor;
         self.layer.borderWidth = 1;
         
-        // Icon
         self.iconLabel = [[UILabel alloc] initWithFrame:CGRectMake(4, 2, 20, 20)];
         self.iconLabel.text = icon;
         self.iconLabel.textColor = [UIColor whiteColor];
@@ -745,7 +762,6 @@ static kern_return_t mach_vm_read_overwrite_fix(vm_map_t task, mach_vm_address_t
         self.iconLabel.userInteractionEnabled = NO;
         [self addSubview:self.iconLabel];
         
-        // Title - đổi tên property
         self.floatingTitleLabel = [[UILabel alloc] initWithFrame:CGRectMake(28, 2, 50, 20)];
         self.floatingTitleLabel.text = title;
         self.floatingTitleLabel.textColor = [UIColor whiteColor];
@@ -754,7 +770,6 @@ static kern_return_t mach_vm_read_overwrite_fix(vm_map_t task, mach_vm_address_t
         self.floatingTitleLabel.userInteractionEnabled = NO;
         [self addSubview:self.floatingTitleLabel];
         
-        // Status
         self.statusLabel = [[UILabel alloc] initWithFrame:CGRectMake(frame.size.width - 18, 4, 12, 12)];
         self.statusLabel.text = @"○";
         self.statusLabel.textColor = [UIColor colorWithRed:1.0 green:0.2 blue:0.2 alpha:1.0];
@@ -906,11 +921,10 @@ static kern_return_t mach_vm_read_overwrite_fix(vm_map_t task, mach_vm_address_t
 @property (nonatomic, strong) FluckTripleTapGestureRecognizer *tripleTapGesture;
 @property (nonatomic, assign) BOOL isHiddenByCamera;
 @property (nonatomic, strong) FreeFireHackManager *hackManager;
-// KHÔNG dùng weak, dùng assign hoặc strong
-@property (nonatomic, assign) UIWindow *overlayWindow;
 @property (nonatomic, strong) NSMutableDictionary *buttonStates;
 @property (nonatomic, strong) UIImageView *menuBackgroundImageView;
 @property (nonatomic, strong) NSMutableArray *menuButtons;
+@property (nonatomic, strong) UIWindow *overlayWindow;
 @end
 
 @implementation FluckMenuViewController
@@ -934,7 +948,7 @@ static kern_return_t mach_vm_read_overwrite_fix(vm_map_t task, mach_vm_address_t
 }
 
 // ============================================================
-// MENU VỚI ẢNH MÈO CẦM SÚNG
+// MENU VỚI ẢNH MÈO
 // ============================================================
 
 - (void)setupMenuWithCatImage {
@@ -943,7 +957,6 @@ static kern_return_t mach_vm_read_overwrite_fix(vm_map_t task, mach_vm_address_t
     CGFloat screenWidth = [UIScreen mainScreen].bounds.size.width;
     CGFloat screenHeight = [UIScreen mainScreen].bounds.size.height;
     
-    // Container menu
     self.menuView = [[UIView alloc] initWithFrame:CGRectMake(0, 0, menuWidth, menuHeight)];
     self.menuView.center = CGPointMake(screenWidth / 2, screenHeight / 2);
     self.menuView.layer.cornerRadius = 20;
@@ -953,9 +966,9 @@ static kern_return_t mach_vm_read_overwrite_fix(vm_map_t task, mach_vm_address_t
     self.menuView.layer.shadowRadius = 15;
     self.menuView.layer.shadowOpacity = 0.5;
     self.menuView.userInteractionEnabled = YES;
+    self.menuView.hidden = YES; // Ẩn ban đầu
     [self.view addSubview:self.menuView];
     
-    // Ảnh nền
     self.menuBackgroundImageView = [[UIImageView alloc] initWithFrame:self.menuView.bounds];
     self.menuBackgroundImageView.contentMode = UIViewContentModeScaleAspectFill;
     self.menuBackgroundImageView.clipsToBounds = YES;
@@ -963,12 +976,10 @@ static kern_return_t mach_vm_read_overwrite_fix(vm_map_t task, mach_vm_address_t
     [self createCatWithGunImage];
     [self.menuView addSubview:self.menuBackgroundImageView];
     
-    // Lớp phủ mờ
     UIView *overlayView = [[UIView alloc] initWithFrame:self.menuView.bounds];
     overlayView.backgroundColor = [UIColor colorWithWhite:0.0 alpha:0.25];
     [self.menuView addSubview:overlayView];
     
-    // Tiêu đề
     UILabel *titleLabel = [[UILabel alloc] initWithFrame:CGRectMake(0, 15, menuWidth, 35)];
     titleLabel.text = @"⚡ FLUCK PRO v1.0";
     titleLabel.textColor = [UIColor colorWithRed:0.0 green:1.0 blue:0.8 alpha:1.0];
@@ -978,7 +989,6 @@ static kern_return_t mach_vm_read_overwrite_fix(vm_map_t task, mach_vm_address_t
     titleLabel.shadowOffset = CGSizeMake(0, 1);
     [self.menuView addSubview:titleLabel];
     
-    // Subtitle
     UILabel *subtitleLabel = [[UILabel alloc] initWithFrame:CGRectMake(0, 45, menuWidth, 18)];
     subtitleLabel.text = @"Free Fire Hack | 3-ngón 2-lần toggle";
     subtitleLabel.textColor = [UIColor colorWithWhite:0.8 alpha:1.0];
@@ -988,7 +998,6 @@ static kern_return_t mach_vm_read_overwrite_fix(vm_map_t task, mach_vm_address_t
     subtitleLabel.shadowOffset = CGSizeMake(0, 1);
     [self.menuView addSubview:subtitleLabel];
     
-    // Các nút chức năng
     NSArray *features = @[
         @{@"icon": @"🎯", @"title": @"Aimbot"},
         @{@"icon": @"👁️", @"title": @"ESP"},
@@ -1002,7 +1011,7 @@ static kern_return_t mach_vm_read_overwrite_fix(vm_map_t task, mach_vm_address_t
         @{@"icon": @"🎮", @"title": @"Trigger"},
         @{@"icon": @"🔫", @"title": @"Infinite Ammo"},
         @{@"icon": @"🌀", @"title": @"Teleport"},
-        @{@"icon": @"🎵", @"title": @"YouTube"}
+        @{@"icon": @"🎵", @"title": @"SoundCloud"}
     ];
     
     CGFloat y = 75;
@@ -1035,7 +1044,6 @@ static kern_return_t mach_vm_read_overwrite_fix(vm_map_t task, mach_vm_address_t
         [self.menuButtons addObject:btn];
     }
     
-    // Close button
     int totalRows = (features.count + cols - 1) / cols;
     CGFloat closeY = y + totalRows * spacing + 10;
     UIButton *closeBtn = [UIButton buttonWithType:UIButtonTypeSystem];
@@ -1049,14 +1057,12 @@ static kern_return_t mach_vm_read_overwrite_fix(vm_map_t task, mach_vm_address_t
     [closeBtn addTarget:self action:@selector(hideMenu) forControlEvents:UIControlEventTouchUpInside];
     [self.menuView addSubview:closeBtn];
     
-    // Resize menu
     CGFloat totalHeight = closeY + 50;
     CGRect frame = self.menuView.frame;
     frame.size.height = totalHeight;
     self.menuView.frame = frame;
     self.menuView.center = CGPointMake(screenWidth / 2, screenHeight / 2);
     
-    // Draggable handle
     UIView *handle = [[UIView alloc] initWithFrame:CGRectMake((menuWidth - 40) / 2, 8, 40, 4)];
     handle.backgroundColor = [UIColor colorWithWhite:0.5 alpha:1.0];
     handle.layer.cornerRadius = 2;
@@ -1071,7 +1077,6 @@ static kern_return_t mach_vm_read_overwrite_fix(vm_map_t task, mach_vm_address_t
     UIGraphicsBeginImageContextWithOptions(size, NO, 0);
     CGContextRef ctx = UIGraphicsGetCurrentContext();
     
-    // Background gradient
     CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceRGB();
     CGFloat locations[] = {0.0, 1.0};
     NSArray *colors = @[(id)[UIColor colorWithRed:0.1 green:0.1 blue:0.2 alpha:1.0].CGColor,
@@ -1081,11 +1086,9 @@ static kern_return_t mach_vm_read_overwrite_fix(vm_map_t task, mach_vm_address_t
     CGGradientRelease(gradient);
     CGColorSpaceRelease(colorSpace);
     
-    // Body
+    // Vẽ mèo
     CGContextSetFillColorWithColor(ctx, [UIColor colorWithRed:0.3 green:0.2 blue:0.1 alpha:1.0].CGColor);
     CGContextFillEllipseInRect(ctx, CGRectMake(100, 200, 150, 180));
-    
-    // Head
     CGContextSetFillColorWithColor(ctx, [UIColor colorWithRed:0.35 green:0.25 blue:0.15 alpha:1.0].CGColor);
     CGContextFillEllipseInRect(ctx, CGRectMake(120, 130, 110, 100));
     
@@ -1192,7 +1195,6 @@ static kern_return_t mach_vm_read_overwrite_fix(vm_map_t task, mach_vm_address_t
 - (void)onMenuButtonTap:(UIButton *)sender {
     NSString *featureTitle = objc_getAssociatedObject(sender, "featureTitle");
     
-    // Toggle button state
     sender.tag = sender.tag == 0 ? 1 : 0;
     if (sender.tag == 1) {
         sender.backgroundColor = [UIColor colorWithRed:0.0 green:0.6 blue:0.0 alpha:0.8];
@@ -1229,11 +1231,11 @@ static kern_return_t mach_vm_read_overwrite_fix(vm_map_t task, mach_vm_address_t
         [self.hackManager enableInfiniteAmmo:isOn];
     } else if ([featureTitle isEqualToString:@"Teleport"]) {
         [self.hackManager enableTeleport:isOn];
-    } else if ([featureTitle isEqualToString:@"YouTube"]) {
+    } else if ([featureTitle isEqualToString:@"SoundCloud"]) {
         if (isOn) {
-            [[YouTubeMusicPlayer shared] playSong:nil];
+            [[SoundCloudPlayer shared] play];
         } else {
-            [[YouTubeMusicPlayer shared] stop];
+            [[SoundCloudPlayer shared] stop];
         }
     }
     [self showToast:[NSString stringWithFormat:@"%@ %@", featureTitle, status]];
@@ -1267,6 +1269,7 @@ static kern_return_t mach_vm_read_overwrite_fix(vm_map_t task, mach_vm_address_t
     self.mainFloatingButton.iconLabel.textColor = [UIColor colorWithRed:0.0 green:1.0 blue:1.0 alpha:0.9];
     self.mainFloatingButton.statusLabel.hidden = YES;
     self.mainFloatingButton.floatingTitleLabel.hidden = YES;
+    self.mainFloatingButton.hidden = NO; // Luôn hiển thị
     [self.mainFloatingButton addTarget:self action:@selector(onMainFloatingButtonTap) forControlEvents:UIControlEventTouchUpInside];
     [self.view addSubview:self.mainFloatingButton];
     [self startPulseAnimation];
@@ -1288,7 +1291,7 @@ static kern_return_t mach_vm_read_overwrite_fix(vm_map_t task, mach_vm_address_t
 }
 
 // ============================================================
-// FLOATING BUTTONS
+// FLOATING BUTTONS (LUÔN HIỂN THỊ)
 // ============================================================
 
 - (void)setupFloatingButtons {
@@ -1317,6 +1320,7 @@ static kern_return_t mach_vm_read_overwrite_fix(vm_map_t task, mach_vm_address_t
             icon:config[@"icon"]];
         btn.tag = i;
         btn.backgroundColor = [UIColor colorWithWhite:0.1 alpha:0.7];
+        btn.hidden = NO; // Luôn hiển thị
         objc_setAssociatedObject(btn, "featureName", config[@"feature"], OBJC_ASSOCIATION_RETAIN_NONATOMIC);
         [btn addTarget:self action:@selector(onFloatingButtonTap:) forControlEvents:UIControlEventTouchUpInside];
         [self.view addSubview:btn];
@@ -1384,20 +1388,25 @@ static kern_return_t mach_vm_read_overwrite_fix(vm_map_t task, mach_vm_address_t
 - (void)autoHideMenu {
     if (self.isVisible) {
         self.isHiddenByCamera = YES;
-        self.view.hidden = YES;
+        self.menuView.hidden = YES;
         self.view.userInteractionEnabled = NO;
+        // KHÔNG ẨN NÚT NỔI
         self.mainFloatingButton.hidden = NO;
-        [self startPulseAnimation];
+        for (FluckFloatingButton *btn in self.floatingButtons) {
+            btn.hidden = NO;
+        }
     }
 }
 
 - (void)autoShowMenu {
     if (!self.isVisible && self.isHiddenByCamera) {
         self.isHiddenByCamera = NO;
-        self.view.hidden = NO;
+        self.menuView.hidden = NO;
         self.view.userInteractionEnabled = YES;
-        self.mainFloatingButton.hidden = YES;
-        [self.mainFloatingButton.layer removeAnimationForKey:@"pulse"];
+        self.mainFloatingButton.hidden = NO;
+        for (FluckFloatingButton *btn in self.floatingButtons) {
+            btn.hidden = NO;
+        }
     }
 }
 
@@ -1441,13 +1450,15 @@ static kern_return_t mach_vm_read_overwrite_fix(vm_map_t task, mach_vm_address_t
 
 - (void)toggleMenu {
     self.isVisible = !self.isVisible;
-    self.view.hidden = !self.isVisible;
-    self.view.userInteractionEnabled = self.isVisible;
     
     if (self.isVisible) {
         self.menuView.hidden = NO;
-        self.mainFloatingButton.hidden = YES;
-        [self.mainFloatingButton.layer removeAnimationForKey:@"pulse"];
+        self.view.userInteractionEnabled = YES;
+        // NÚT NỔI VẪN HIỂN THỊ
+        self.mainFloatingButton.hidden = NO;
+        for (FluckFloatingButton *btn in self.floatingButtons) {
+            btn.hidden = NO;
+        }
         self.menuView.transform = CGAffineTransformMakeScale(0.5, 0.5);
         self.menuView.alpha = 0;
         [UIView animateWithDuration:0.3 delay:0 usingSpringWithDamping:0.7 initialSpringVelocity:0.5 options:0 animations:^{
@@ -1456,8 +1467,12 @@ static kern_return_t mach_vm_read_overwrite_fix(vm_map_t task, mach_vm_address_t
         } completion:nil];
     } else {
         self.menuView.hidden = YES;
+        self.view.userInteractionEnabled = NO;
+        // NÚT NỔI VẪN HIỂN THỊ
         self.mainFloatingButton.hidden = NO;
-        [self startPulseAnimation];
+        for (FluckFloatingButton *btn in self.floatingButtons) {
+            btn.hidden = NO;
+        }
     }
 }
 
@@ -1487,7 +1502,7 @@ static kern_return_t mach_vm_read_overwrite_fix(vm_map_t task, mach_vm_address_t
 - (void)dealloc {
     [self.fpsTimer invalidate];
     [[NSNotificationCenter defaultCenter] removeObserver:self];
-    [[YouTubeMusicPlayer shared] stop];
+    [[SoundCloudPlayer shared] stop];
     [self.hackManager stopHackLoop];
     [self.hackManager stopTeleportLoop];
 }
@@ -1568,23 +1583,24 @@ static kern_return_t mach_vm_read_overwrite_fix(vm_map_t task, mach_vm_address_t
             self.overlayWindow = [[UIWindow alloc] initWithFrame:UIScreen.mainScreen.bounds];
         }
         
-        self.overlayWindow.windowLevel = UIWindowLevelStatusBar + 100;
+        // QUAN TRỌNG: Set window level cao nhất để nhận touch
+        self.overlayWindow.windowLevel = UIWindowLevelStatusBar + 1000;
         self.overlayWindow.backgroundColor = [UIColor clearColor];
         self.overlayWindow.userInteractionEnabled = YES;
         self.overlayWindow.hidden = NO;
         self.overlayWindow.opaque = NO;
+        self.overlayWindow.makeKeyAndVisible;
         
         self.menuVC = [[FluckMenuViewController alloc] init];
         self.menuVC.view.frame = self.overlayWindow.bounds;
         self.menuVC.view.backgroundColor = [UIColor clearColor];
         self.menuVC.view.userInteractionEnabled = YES;
-        self.menuVC.overlayWindow = (__bridge UIWindow *)(__bridge void *)self.overlayWindow;
+        self.menuVC.overlayWindow = self.overlayWindow;
         self.overlayWindow.rootViewController = self.menuVC;
         self.menuVC.view.hidden = NO;
         self.menuVC.menuView.hidden = YES;
         
-        self.overlayWindow.userInteractionEnabled = YES;
-        
+        // Hiển thị menu sau 0.5s
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 0.5 * NSEC_PER_SEC), dispatch_get_main_queue(), ^{
             [self.menuVC toggleMenu];
         });
@@ -1605,7 +1621,7 @@ static kern_return_t mach_vm_read_overwrite_fix(vm_map_t task, mach_vm_address_t
             self.overlayWindow.hidden = YES;
             self.overlayWindow = nil;
         }
-        [[YouTubeMusicPlayer shared] stop];
+        [[SoundCloudPlayer shared] stop];
         LOG(@"⛔ Fluck stopped");
     });
 }
@@ -1635,8 +1651,8 @@ static void fluck_constructor(void) {
     LOG(@"║   📅 Build: %s %s", __DATE__, __TIME__);
     LOG(@"║   👆 3-ngón 2-lần toggle menu           ║");
     LOG(@"║   📷 Auto-hide khi chụp ảnh/quay video  ║");
-    LOG(@"║   🎵 YouTube Music Player               ║");
-    LOG(@"║   🎯 Floating buttons + Cat Menu        ║");
+    LOG(@"║   🎵 SoundCloud Player (no captcha)     ║");
+    LOG(@"║   🎯 Floating buttons always visible    ║");
     LOG(@"═══════════════════════════════════════════════");
     
     dispatch_async(dispatch_get_main_queue(), ^{
