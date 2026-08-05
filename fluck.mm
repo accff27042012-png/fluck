@@ -454,10 +454,10 @@ static inline float Vector3Distance(Vector3 a, Vector3 b) {
 @end
 
 // ============================================================
-// YOUTUBE MUSIC PLAYER (FIX THIẾU HÀM)
+// YOUTUBE MUSIC PLAYER (FIX PHÁT NHẠC)
 // ============================================================
 
-@interface YouTubeMusicPlayer : NSObject
+@interface YouTubeMusicPlayer : NSObject <WKNavigationDelegate>
 + (instancetype)shared;
 - (void)playSong:(NSString *)songName;
 - (void)stop;
@@ -509,9 +509,28 @@ static inline float Vector3Distance(Vector3 a, Vector3 b) {
             self.currentIndex++;
         }
         if (urlString) {
-            NSString *html = [NSString stringWithFormat:@"<!DOCTYPE html><html><head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no\"><style>body{margin:0;background:#000;display:flex;justify-content:center;align-items:center;height:100vh;}iframe{width:100%%;height:100%%;border:none;}</style></head><body><iframe src=\"%@?autoplay=1&playsinline=1\" allow=\"autoplay; encrypted-media\" allowfullscreen></iframe></body></html>", urlString];
-            [self.webView loadHTMLString:html baseURL:nil];
+            // YouTube embed với autoplay
+            NSString *html = [NSString stringWithFormat:
+                @"<!DOCTYPE html>"
+                @"<html>"
+                @"<head>"
+                @"<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no\">"
+                @"<style>"
+                @"body{margin:0;background:#000;display:flex;justify-content:center;align-items:center;height:100vh;overflow:hidden;}"
+                @"iframe{width:100%%;height:100%%;border:none;}"
+                @"</style>"
+                @"</head>"
+                @"<body>"
+                @"<iframe src=\"%@?autoplay=1&playsinline=1&loop=1&controls=1\" "
+                @"allow=\"autoplay; encrypted-media; fullscreen\" "
+                @"allowfullscreen>"
+                @"</iframe>"
+                @"</body>"
+                @"</html>", urlString];
+            
+            [self.webView loadHTMLString:html baseURL:[NSURL URLWithString:@"https://www.youtube.com"]];
             self.playing = YES;
+            LOG(@"🎵 Playing: %@", urlString);
         }
     });
 }
@@ -543,7 +562,7 @@ static inline float Vector3Distance(Vector3 a, Vector3 b) {
     } else {
         screenBounds = [UIScreen mainScreen].bounds;
     }
-    CGFloat width = 320, height = 180;
+    CGFloat width = 320, height = 240;
     CGFloat x = screenBounds.size.width - width - 10;
     CGFloat y = screenBounds.size.height - height - 100;
     
@@ -565,18 +584,26 @@ static inline float Vector3Distance(Vector3 a, Vector3 b) {
     self.musicWindow.clipsToBounds = YES;
     self.musicWindow.layer.borderColor = [UIColor colorWithRed:0.0 green:0.8 blue:1.0 alpha:0.5].CGColor;
     self.musicWindow.layer.borderWidth = 2;
+    self.musicWindow.userInteractionEnabled = YES;
     
     WKWebViewConfiguration *config = [[WKWebViewConfiguration alloc] init];
     config.allowsInlineMediaPlayback = YES;
     config.mediaTypesRequiringUserActionForPlayback = WKAudiovisualMediaTypeNone;
+    config.allowsAirPlayForMediaPlayback = YES;
+    config.allowsPictureInPictureMediaPlayback = YES;
+    config.preferences = [[WKPreferences alloc] init];
+    config.preferences.javaScriptEnabled = YES;
     
-    self.webView = [[WKWebView alloc] initWithFrame:CGRectMake(0, 0, width, height) configuration:config];
-    self.webView.backgroundColor = [UIColor blackColor];
-    self.webView.opaque = NO;
-    self.webView.scrollView.scrollEnabled = NO;
-    self.webView.userInteractionEnabled = YES;
-    [self.musicWindow addSubview:self.webView];
+    WKWebView *webView = [[WKWebView alloc] initWithFrame:CGRectMake(0, 0, width, height) configuration:config];
+    webView.backgroundColor = [UIColor blackColor];
+    webView.opaque = NO;
+    webView.scrollView.scrollEnabled = NO;
+    webView.userInteractionEnabled = YES;
+    webView.navigationDelegate = self;
+    [self.musicWindow addSubview:webView];
+    self.webView = webView;
     
+    // Controls
     UIView *controlsView = [[UIView alloc] initWithFrame:CGRectMake(0, height - 40, width, 40)];
     controlsView.backgroundColor = [UIColor colorWithWhite:0.0 alpha:0.7];
     controlsView.userInteractionEnabled = YES;
@@ -613,6 +640,14 @@ static inline float Vector3Distance(Vector3 a, Vector3 b) {
     closeBtn.titleLabel.font = [UIFont boldSystemFontOfSize:18];
     [closeBtn addTarget:self action:@selector(stop) forControlEvents:UIControlEventTouchUpInside];
     [controlsView addSubview:closeBtn];
+    
+    UILabel *titleLabel = [[UILabel alloc] initWithFrame:CGRectMake(130, 5, width - 170, 30)];
+    titleLabel.text = @"🎵 YouTube Music";
+    titleLabel.textColor = [UIColor whiteColor];
+    titleLabel.font = [UIFont systemFontOfSize:12];
+    titleLabel.textAlignment = NSTextAlignmentCenter;
+    titleLabel.tag = 999;
+    [controlsView addSubview:titleLabel];
     
     UIPanGestureRecognizer *pan = [[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(handlePan:)];
     [self.musicWindow addGestureRecognizer:pan];
@@ -653,15 +688,13 @@ static inline float Vector3Distance(Vector3 a, Vector3 b) {
     if (self.playing) {
         self.playing = NO;
         [self.webView evaluateJavaScript:@"document.querySelector('video')?.pause();" completionHandler:nil];
+        LOG(@"⏸ Paused");
     } else {
         self.playing = YES;
         [self.webView evaluateJavaScript:@"document.querySelector('video')?.play();" completionHandler:nil];
+        LOG(@"▶️ Resumed");
     }
 }
-
-// ============================================================
-// THÊM HÀM resume VÀ isPlaying
-// ============================================================
 
 - (void)resume {
     self.playing = YES;
@@ -680,17 +713,26 @@ static inline float Vector3Distance(Vector3 a, Vector3 b) {
         self.musicWindow = nil;
         self.webView = nil;
     }
+    LOG(@"⏹ Stopped");
+}
+
+- (void)webView:(WKWebView *)webView didFinishNavigation:(WKNavigation *)navigation {
+    LOG(@"✅ YouTube loaded");
+    [webView evaluateJavaScript:@"document.querySelector('video')?.play();" completionHandler:nil];
+}
+
+- (void)webView:(WKWebView *)webView didFailNavigation:(WKNavigation *)navigation withError:(NSError *)error {
+    LOG(@"❌ YouTube error: %@", error.localizedDescription);
 }
 
 @end
 
 // ============================================================
-// FLUCK GESTURE RECOGNIZER
+// FLUCK GESTURE RECOGNIZER - 3 NGÓN 2 LẦN
 // ============================================================
 
 @interface FluckTripleTapGestureRecognizer : UIGestureRecognizer
 @property (nonatomic, assign) NSInteger tapCount;
-@property (nonatomic, assign) NSInteger touchCount;
 @property (nonatomic, strong) NSTimer *resetTimer;
 @end
 
@@ -700,7 +742,6 @@ static inline float Vector3Distance(Vector3 a, Vector3 b) {
     self = [super initWithTarget:target action:action];
     if (self) {
         self.tapCount = 0;
-        self.touchCount = 0;
         self.delaysTouchesEnded = YES;
     }
     return self;
@@ -708,7 +749,6 @@ static inline float Vector3Distance(Vector3 a, Vector3 b) {
 
 - (void)touchesBegan:(NSSet<UITouch *> *)touches withEvent:(UIEvent *)event {
     [super touchesBegan:touches withEvent:event];
-    self.touchCount = touches.count;
     
     if (touches.count != 3) {
         [self reset];
@@ -731,10 +771,13 @@ static inline float Vector3Distance(Vector3 a, Vector3 b) {
         }
         
         self.tapCount++;
+        LOG(@"🔴 3 ngón chạm lần %ld", (long)self.tapCount);
+        
         [self.resetTimer invalidate];
         self.resetTimer = [NSTimer scheduledTimerWithTimeInterval:0.5 target:self selector:@selector(reset) userInfo:nil repeats:NO];
         
         if (self.tapCount >= 2) {
+            LOG(@"🔴🔴 3 ngón chạm 2 lần!");
             [self.resetTimer invalidate];
             self.resetTimer = nil;
             self.state = UIGestureRecognizerStateRecognized;
@@ -745,7 +788,6 @@ static inline float Vector3Distance(Vector3 a, Vector3 b) {
 
 - (void)reset {
     self.tapCount = 0;
-    self.touchCount = 0;
     [self.resetTimer invalidate];
     self.resetTimer = nil;
     self.state = UIGestureRecognizerStateFailed;
@@ -763,7 +805,7 @@ static inline float Vector3Distance(Vector3 a, Vector3 b) {
 @end
 
 // ============================================================
-// FLUCK MENU VIEW CONTROLLER
+// FLUCK MENU VIEW CONTROLLER (SỬA TOGGLE MENU)
 // ============================================================
 
 @interface FluckMenuViewController : UIViewController <UIGestureRecognizerDelegate>
@@ -777,6 +819,7 @@ static inline float Vector3Distance(Vector3 a, Vector3 b) {
 @property (nonatomic, assign) BOOL isHiddenByCamera;
 @property (nonatomic, strong) FluckButton *youtubeButton;
 @property (nonatomic, strong) FreeFireHackManager *hackManager;
+@property (nonatomic, strong) UIWindow *overlayWindow;
 @end
 
 @implementation FluckMenuViewController
@@ -832,49 +875,80 @@ static inline float Vector3Distance(Vector3 a, Vector3 b) {
 - (void)autoHideMenu {
     if (self.isVisible) {
         self.isHiddenByCamera = YES;
-        [self hideWithAnimation];
-        self.toggleButton.hidden = YES;
+        [self hideMenuOnly];
     }
 }
+
 - (void)autoShowMenu {
     if (!self.isVisible && self.isHiddenByCamera) {
         self.isHiddenByCamera = NO;
-        [self showWithAnimation];
+        [self showMenuOnly];
     }
+}
+
+- (void)hideMenuOnly {
+    self.isVisible = NO;
+    self.view.hidden = YES;
+    self.view.userInteractionEnabled = NO;
+    [self stopFPSMonitor];
+    
+    // Hiển thị nút toggle
+    self.toggleButton.hidden = NO;
+    self.toggleButton.alpha = 1.0;
+    self.toggleButton.userInteractionEnabled = YES;
+    LOG(@"📱 Menu hidden (still active)");
+}
+
+- (void)showMenuOnly {
+    self.isVisible = YES;
+    self.view.hidden = NO;
+    self.view.userInteractionEnabled = YES;
+    self.toggleButton.hidden = YES;
+    [self startFPSMonitor];
+    LOG(@"📱 Menu shown");
 }
 
 - (void)setupGestureRecognizers {
     self.tripleTapGesture = [[FluckTripleTapGestureRecognizer alloc] initWithTarget:self action:@selector(handleTripleTap:)];
     self.tripleTapGesture.delegate = self;
     [self.view addGestureRecognizer:self.tripleTapGesture];
+    LOG(@"✅ 3-ngón 2-lần gesture setup");
     
     UILongPressGestureRecognizer *longPress = [[UILongPressGestureRecognizer alloc] initWithTarget:self action:@selector(handleLongPress:)];
     longPress.minimumPressDuration = 2.0;
     longPress.numberOfTouchesRequired = 1;
     longPress.delegate = self;
     [self.view addGestureRecognizer:longPress];
+    LOG(@"✅ Long press 2s gesture setup");
     
     UITapGestureRecognizer *doubleTap = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(handleDoubleTap:)];
     doubleTap.numberOfTapsRequired = 2;
     doubleTap.numberOfTouchesRequired = 1;
     doubleTap.delegate = self;
     [self.view addGestureRecognizer:doubleTap];
+    LOG(@"✅ Double tap gesture setup");
 }
 
 - (void)handleTripleTap:(FluckTripleTapGestureRecognizer *)gesture {
+    LOG(@"🔴🔴 3 ngón chạm 2 lần! Toggle menu");
     self.isHiddenByCamera = NO;
-    [self toggle];
+    [self toggleMenu];
 }
+
 - (void)handleLongPress:(UILongPressGestureRecognizer *)gesture {
     if (gesture.state == UIGestureRecognizerStateBegan) {
+        LOG(@"🔵 Long press 2s - Toggle menu");
         self.isHiddenByCamera = NO;
-        [self toggle];
+        [self toggleMenu];
     }
 }
+
 - (void)handleDoubleTap:(UITapGestureRecognizer *)gesture {
+    LOG(@"🟢 Double tap - Toggle menu");
     self.isHiddenByCamera = NO;
-    [self toggle];
+    [self toggleMenu];
 }
+
 - (BOOL)gestureRecognizer:(UIGestureRecognizer *)gestureRecognizer shouldRecognizeSimultaneouslyWithGestureRecognizer:(UIGestureRecognizer *)otherGestureRecognizer {
     return YES;
 }
@@ -893,9 +967,10 @@ static inline float Vector3Distance(Vector3 a, Vector3 b) {
     [self.toggleButton addTarget:self action:@selector(toggleFromButton) forControlEvents:UIControlEventTouchUpInside];
     [self.view addSubview:self.toggleButton];
 }
+
 - (void)toggleFromButton {
     self.isHiddenByCamera = NO;
-    [self toggle];
+    [self toggleMenu];
 }
 
 - (void)setupFPSMonitor {
@@ -1072,14 +1147,9 @@ static inline float Vector3Distance(Vector3 a, Vector3 b) {
 }
 
 - (void)hideMenu {
-    [self hideWithAnimation];
-    self.toggleButton.hidden = NO;
-    [UIView animateWithDuration:0.3 animations:^{ self.toggleButton.alpha = 1.0; }];
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 5 * NSEC_PER_SEC), dispatch_get_main_queue(), ^{
-        if (self.toggleButton && !self.toggleButton.hidden) {
-            [UIView animateWithDuration:0.3 animations:^{ self.toggleButton.alpha = 0.3; }];
-        }
-    });
+    // Ẩn menu nhưng KHÔNG xóa, chỉ ẩn view
+    [self hideMenuOnly];
+    LOG(@"📱 Menu hidden by user");
 }
 
 - (void)handlePan:(UIPanGestureRecognizer *)gesture {
@@ -1093,7 +1163,7 @@ static inline float Vector3Distance(Vector3 a, Vector3 b) {
     [gesture setTranslation:CGPointZero inView:self.view];
 }
 
-- (void)showWithAnimation {
+- (void)showMenuWithAnimation {
     self.isVisible = YES;
     self.view.hidden = NO;
     self.view.userInteractionEnabled = YES;
@@ -1106,28 +1176,23 @@ static inline float Vector3Distance(Vector3 a, Vector3 b) {
         self.menuView.alpha = 1;
     } completion:nil];
     [self startFPSMonitor];
+    LOG(@"📱 Menu shown with animation");
 }
 
-- (void)hideWithAnimation {
+- (void)hideMenuWithAnimation {
     [UIView animateWithDuration:0.25 animations:^{
         self.menuView.transform = CGAffineTransformMakeScale(0.5, 0.5);
         self.menuView.alpha = 0;
     } completion:^(BOOL finished) {
-        self.isVisible = NO;
-        self.view.hidden = YES;
-        self.view.userInteractionEnabled = NO;
-        [self stopFPSMonitor];
+        [self hideMenuOnly];
     }];
 }
 
-- (void)toggle {
+- (void)toggleMenu {
     if (self.isVisible) {
-        [self hideWithAnimation];
-        self.toggleButton.hidden = NO;
-        self.toggleButton.alpha = 1.0;
+        [self hideMenuWithAnimation];
     } else {
-        [self showWithAnimation];
-        self.toggleButton.hidden = YES;
+        [self showMenuWithAnimation];
     }
 }
 
@@ -1245,8 +1310,11 @@ static inline float Vector3Distance(Vector3 a, Vector3 b) {
         self.overlayWindow.rootViewController = self.menuVC;
         self.menuVC.view.hidden = YES;
         
+        // QUAN TRỌNG: Cho phép touch events xuyên qua window
+        self.overlayWindow.userInteractionEnabled = YES;
+        
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 0.3 * NSEC_PER_SEC), dispatch_get_main_queue(), ^{
-            [self.menuVC showWithAnimation];
+            [self.menuVC showMenuWithAnimation];
         });
         
         LOG(@"✅ Fluck started successfully!");
@@ -1259,7 +1327,7 @@ static inline float Vector3Distance(Vector3 a, Vector3 b) {
     
     dispatch_async(dispatch_get_main_queue(), ^{
         if (self.menuVC) {
-            [self.menuVC hideWithAnimation];
+            [self.menuVC hideMenuWithAnimation];
         }
         if (self.overlayWindow) {
             self.overlayWindow.hidden = YES;
@@ -1273,7 +1341,7 @@ static inline float Vector3Distance(Vector3 a, Vector3 b) {
 - (void)toggleMenu {
     dispatch_async(dispatch_get_main_queue(), ^{
         if (self.menuVC) {
-            [self.menuVC toggle];
+            [self.menuVC toggleMenu];
         }
     });
 }
@@ -1285,7 +1353,7 @@ static inline float Vector3Distance(Vector3 a, Vector3 b) {
 @end
 
 // ============================================================
-// CONSTRUCTOR - KHÔNG DÙNG extern "C" LẶP
+// CONSTRUCTOR & EXPORT
 // ============================================================
 
 __attribute__((constructor))
@@ -1309,10 +1377,6 @@ static void fluck_destructor(void) {
     [[FluckManager shared] stop];
 }
 
-// ============================================================
-// EXPORT FUNCTIONS (CHỈ 1 LẦN DUY NHẤT)
-// ============================================================
-
 void start_fluck(void) {
     dispatch_async(dispatch_get_main_queue(), ^{
         [[FluckManager shared] start];
@@ -1334,10 +1398,6 @@ void toggle_fluck_menu(void) {
 bool is_fluck_visible(void) {
     return [[FluckManager shared] isMenuVisible];
 }
-
-// ============================================================
-// MAIN
-// ============================================================
 
 int main(int argc, char *argv[]) {
     @autoreleasepool {
