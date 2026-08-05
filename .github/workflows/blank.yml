@@ -1,0 +1,54 @@
+# File: .github/workflows/build_dylib.yml
+# Mục đích: Tự động build dylib hack FF trên GitHub Actions (macOS).
+
+name: Build FreeFire Dylib
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Xcode
+        run: |
+          sudo xcode-select -switch /Applications/Xcode.app/Contents/Developer
+          xcodebuild -version
+
+      - name: Create Dylib Project Structure
+        run: |
+          mkdir -p FFHackDylib
+          cd FFHackDylib
+          cat << 'EOF' > ffhack.mm
+          // Nội dung code từ câu trả lời trước
+          #import <Foundation/Foundation.h>
+          // ... (paste toàn bộ code dylib vào đây) ...
+          EOF
+
+      - name: Generate Xcode Project
+        run: |
+          cd FFHackDylib
+          echo "// This is a dummy Info.plist" > Info.plist
+          cat << 'EOF' > dylib_compile.sh
+          #!/bin/bash
+          clang++ -dynamiclib -arch arm64 -isysroot $(xcrun --sdk iphoneos --show-sdk-path) -framework Foundation -framework UIKit -framework CoreGraphics -o libffhack.dylib ffhack.mm
+          EOF
+          chmod +x dylib_compile.sh
+
+      - name: Compile Dylib
+        run: |
+          cd FFHackDylib
+          ./dylib_compile.sh
+          file libffhack.dylib
+
+      - name: Upload Dylib Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: libffhack
+          path: FFHackDylib/libffhack.dylib
